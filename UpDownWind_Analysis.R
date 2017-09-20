@@ -7,6 +7,9 @@
 # load packages
 library(ggplot2)
 library(plyr)
+library(viridis)
+library(car)
+library(multcomp)
 
 
 # set ggplot theme
@@ -18,8 +21,9 @@ theme_set(theme_bw())
 updn <- read.csv("datasets/Upwind Downwind Data.csv")
 head(updn)
 
-
+#________________________________________________________________________ 
 # visualize data to gain intuition
+#________________________________________________________________________ 
 # plot counts
 ggplot(updn, aes(x = interaction(side, flow.category, flight.direction), fill = bee.wind.orientation)) + 
   geom_bar() + 
@@ -32,7 +36,333 @@ aa <- ggplot(updn, aes(x = interaction(side, flow.category, flight.direction), f
   geom_hline(aes(yintercept =  0.5))
 aa
 
+updn$ttrt <- with(updn, interaction(bee.wind.orientation, flow.category,  flight.direction))
+
+tb <- table(updn$ttrt)
+updn$trt <-  factor(updn$ttrt,
+                    levels = names(tb[order(tb, decreasing = TRUE)]))
+
+
+bb <- ggplot(updn, aes(x = trt, fill  = bee.wind.orientation)) + 
+  geom_bar(position = "identity", alpha = 0.5) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5)) + 
+  geom_hline(aes(yintercept =  0.5)) + 
+  scale_fill_viridis(discrete = TRUE) 
+bb
+
+bb + facet_wrap(~day)
+
+
+# find the maximum number of minutes per day
+tapply(updn$minute, INDEX = updn$day, max)
+
+# find the sample sizes for each day
+xtabs(~updn$day) # looks like some days were quite small -- like 6/12/17
+
+# find unique experiments, in case we want to analyze separately
+trts <- as.data.frame((tapply(as.character(updn$trt),updn$day, FUN = function(x) paste(sort(unique(x)) , collapse = " " ))))
+trts$date = row.names(trts)
+colnames(trts) = c("experiment", "date")
+trts
+unique(trts$experiment)
+
+# label experiments in dataset
+updn$experiment <- mapvalues(updn$day, from = trts$date, to = trts$experiment)
+
+# visualize different experiments
+
+cc <- ggplot(updn, aes(x = trt, fill = bee.wind.orientation)) + 
+  geom_bar(position = "identity", alpha = 0.5) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5)) + 
+  geom_hline(aes(yintercept =  0.5)) + 
+  scale_fill_viridis(discrete = TRUE) + 
+  facet_grid(experiment ~ side  + flight.direction)
+cc
+
+
+
+#________________________________________________________________________ 
+# Analyze each experiment separately
+#________________________________________________________________________ 
+
+exp1 <- updn[updn$experiment == levels(updn$experiment)[1], ]
+colnames(exp1)
+
+cc <- ggplot(exp1, aes(x = side, fill = bee.wind.orientation)) + 
+  geom_bar(position = "identity", alpha = 0.5) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5)) + 
+  geom_hline(aes(yintercept =  0.5)) + 
+  scale_fill_viridis(discrete = TRUE) + 
+  facet_grid(bee.wind.orientation  ~ flight.direction + flow.category, labeller = labeller(.rows = label_both, .cols = label_both))
+cc
+
+
+cc <- ggplot(exp1, aes(x = interaction(side, bee.wind.orientation), fill = bee.wind.orientation)) + 
+  geom_bar(position = "identity", alpha = 0.5) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5)) + 
+  geom_hline(aes(yintercept =  0.5)) + 
+  scale_fill_viridis(discrete = TRUE) + 
+  facet_grid( flight.direction ~  flow.category, labeller = labeller(.rows = label_both, .cols = label_both))
+cc
+
+cc <- ggplot(exp1, aes(x = side, fill = bee.wind.orientation)) + 
+  geom_bar(position = "fill", alpha = 0.5) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5)) + 
+  geom_hline(aes(yintercept =  0.5), linetype = 2) + 
+  scale_fill_viridis(discrete = TRUE) + 
+  facet_grid( flight.direction ~  flow.category, labeller = labeller(.rows = label_both, .cols = label_both))
+cc
+
+
+
+# glm for experiment 1
+exp1$fly_upwind <- mapvalues(exp1$bee.wind.orientation, from = c("Downwind'", "No wind'", "Upwind'"), 
+                                           to = c(0, 999, 1))
+
+exp1$fly_upwind <- droplevels(exp1$fly_upwind)
+
+table(exp1$fly_upwind)
+
+
+# check VIF
+car::vif(lm(as.numeric(fly_upwind) ~ side  +  flight.direction, data = exp1))
+
+# model full interaction
+m1 <- glm(fly_upwind ~ side  *  flight.direction, data = exp1, family = binomial("logit"))
+summary(m1)
+
+# diagnostics
+plot(m1, which = 4)
+
+
+# post-hoc test to see if pref is greater than 0.5 in all categories
+
+exp1$intVar <- with(exp1, interaction(side, flight.direction))
+exp1$intVar <- gsub("[[:punct:]]", "", exp1$intVar) 
+
+
+m1.1 <- glm(fly_upwind ~ intVar + 0, data = exp1, family = binomial("logit"))
+summary(m1.1)
+
+
+# calculate confidence intervals for proportions
+CIs <- plogis(cbind(coef(m1.1), confint(m1.1)))
+
+CIs <- data.frame(CIs, coefs = row.names(CIs))
+colnames(CIs) <- c("mean", "low", "high", "coefs")
+
+CIs$side = mapvalues(CIs$coefs, from = c("intVarLeftBox", "intVarLeftNectar", "intVarRightBox", "intVarRightNectar"), 
+                     to = c("Left'", "Left'", "Right'", "Right'"))
+
+CIs$flight.direction = mapvalues(CIs$coefs, from = c("intVarLeftBox", "intVarLeftNectar", "intVarRightBox", "intVarRightNectar"), 
+                     to = c("Box'", "Nectar'", "Box'", "Nectar'"))
+
+
+K <- diag(length(coef(m1.1)))
+rownames(K) <- names(coef(m1.1))
+
+summary(glht(m1.1, linfct = K),test = adjusted("none") ) # same as above
+
+# plot mean and CI's
+cc <- ggplot(exp1, aes(x = side)) + 
+  geom_bar(position = "fill", alpha = 0.5, aes(fill = bee.wind.orientation)) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5)) + 
+  geom_hline(aes(yintercept =  0.5), linetype = 2) + 
+  scale_fill_viridis(discrete = TRUE) + 
+  facet_grid( flight.direction ~  flow.category, labeller = labeller(.rows = label_both, .cols = label_both))
+cc + geom_point(data = CIs, aes(x = side, y = mean)) + 
+  geom_errorbar(data = CIs, aes(ymin = low, ymax = high), width = 0.1) + 
+  labs(y = "Proportion of flights upwind")
+
+
+# double check to make sure prediction confidence intervals are the same
+# calculate confidence intervals for predictions
+preddf <- exp1[, c("side", "flight.direction", "flow.category")]
+preddf <- preddf[!(duplicated(preddf)), ]
+
+
+pdns <- data.frame(predict(m1, newdata = preddf, type = "link", se.fit = TRUE))
+pdns$fit_prob = plogis(pdns$fit)
+pdns$lower <- plogis(pdns$fit - 1.96* pdns$se.fit)
+pdns$higher <- plogis(pdns$fit + 1.96* pdns$se.fit)
+
+pdns <- data.frame(predict(m1, newdata = preddf, type = "link", se.fit = TRUE))
+pdns$fit_prob = plogis(pdns$fit)
+pdns$lower <- plogis(pdns$fit - 1.96* pdns$se.fit)
+pdns$higher <- plogis(pdns$fit + 1.96* pdns$se.fit)
+
+preddf <- cbind(preddf, pdns)
+
+
+preddf
+CIs
+
+
+
+#________________________________________________________________________ 
+# Experiment 2
+# this incorporates, fast/slow, left/right/ and box/nectar
+#________________________________________________________________________ 
+
+exp2 <- updn[updn$experiment %in% levels(updn$experiment)[2:3], ]
+colnames(exp2)
+
+dd <- ggplot(exp2, aes(x = side, fill = bee.wind.orientation)) + 
+  geom_bar(position = "identity", alpha = 0.5) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5)) + 
+  geom_hline(aes(yintercept =  0.5)) + 
+  scale_fill_viridis(discrete = TRUE) + 
+  facet_grid(bee.wind.orientation  ~ flight.direction + flow.category, labeller = labeller(.rows = label_both, .cols = label_both))
+dd
+
+
+
+dd <- ggplot(exp2, aes(x = side, fill = bee.wind.orientation)) + 
+  geom_bar(position = "fill", alpha = 0.5) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5)) + 
+  geom_hline(aes(yintercept =  0.5), linetype = 2) + 
+  scale_fill_viridis(discrete = TRUE) + 
+  facet_grid(flow.category~flight.direction, labeller = labeller(.rows = label_both, .cols = label_both))
+dd
+
+
+
+# glm for experiment 2
+exp2$fly_upwind <- mapvalues(exp2$bee.wind.orientation, from = c("Downwind'", "No wind'", "Upwind'"), 
+                             to = c(0, 999, 1))
+
+exp2$fly_upwind <- droplevels(exp2$fly_upwind)
+
+table(exp2$fly_upwind)
+
+
+# check VIF
+car::vif(lm(as.numeric(fly_upwind) ~ side  +  flight.direction + flow.category, data = exp2))
+
+# model full interaction
+m1 <- glm(fly_upwind ~ side  *  flight.direction * flow.category , data = exp2, family = binomial("logit"))
+summary(m1)
+
+drop1(m1, test = "LRT")
+
+m2 <- update(m1, .~. - side:flight.direction:flow.category)
+summary(m2)
+
+drop1(m2, test = "LRT")
+
+m3 <- update(m2, .~. - side:flow.category)
+summary(m3)
+
+drop1(m3, test = "LRT") # can't drop any more
+
+# calculate confidence intervals for predictions
+preddf <- exp2[, c("side", "flight.direction", "flow.category")]
+preddf <- preddf[!(duplicated(preddf)), ]
+
+
+# predictions can be from m1 or m3
+pdns <- data.frame(predict(m1, newdata = preddf, type = "link", se.fit = TRUE))
+pdns$fit_prob = plogis(pdns$fit)
+pdns$lower <- plogis(pdns$fit - 1.96* pdns$se.fit)
+pdns$higher <- plogis(pdns$fit + 1.96* pdns$se.fit)
+
+preddf <- cbind(preddf, pdns)
+
+dd <- ggplot(exp2, aes(x = side)) + 
+  geom_bar(position = "fill", alpha = 0.5, aes(fill = bee.wind.orientation)) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5)) + 
+  geom_hline(aes(yintercept =  0.5), linetype = 2) + 
+  scale_fill_viridis(discrete = TRUE) + 
+  facet_grid(flow.category~flight.direction, labeller = labeller(.rows = label_both, .cols = label_both))
+dd
+dd + geom_point(data = preddf, aes(x = side, y = fit_prob)) + 
+  geom_errorbar(data = preddf, aes(ymin = lower, ymax = higher), width = 0.1) + 
+  labs(y = "Proportion of flights upwind")
+
+# diagnostics
+plot(m1, which = 4)
+summary(m1)
+
+
+#________________________________________________________________________ 
+# Experiment 3
+# control experiment, incorporates left/right, and box/nectar, no wind
+#________________________________________________________________________ 
+exp3 <- updn[updn$experiment == levels(updn$experiment)[4], ]
+
+ee <- ggplot(exp3, aes(x = side)) + 
+  geom_bar(position = "identity", alpha = 0.5, aes(fill = side)) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5)) + 
+  geom_hline(aes(yintercept =  0.5)) + 
+  scale_fill_viridis(discrete = TRUE, option = "C") + 
+  facet_grid(bee.wind.orientation  ~ flight.direction + flow.category, labeller = labeller(.rows = label_both, .cols = label_both))
+ee
+
+ee <- ggplot(exp3, aes(x = flight.direction)) + 
+  geom_bar(position = "fill", alpha = 0.5, aes(fill = side)) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5)) + 
+  geom_hline(aes(yintercept =  0.5)) + 
+  scale_fill_viridis(discrete = TRUE, option = "C") + 
+  facet_grid(bee.wind.orientation  ~  flow.category, labeller = labeller(.rows = label_both, .cols = label_both))
+ee
+
+
+
+# glm for experiment 3
+exp3$fly_right <- mapvalues(exp3$side, from = c("Left'", "Right'"), 
+                             to = c(0, 1))
+
+exp3$fly_right <- droplevels(exp3$fly_right)
+
+table(exp3$fly_right)
+
+
+# check VIF
+
+# model
+m1 <- glm(fly_right ~ flight.direction, data = exp3, family = binomial("logit"))
+summary(m1)
+
+drop1(m1, test = "LRT")
+
+m2 <- update(m1, .~. - flight.direction)
+summary(m2)
+
+
+# calculate confidence intervals for predictions
+preeef <- exp3[, c("side", "flight.direction", "flow.category")]
+preeef <- preeef[!(duplicated(preeef)), ]
+
+pdns <- data.frame(predict(m1, newdata = preeef, type = "link", se.fit = TRUE))
+pdns$fit_prob = plogis(pdns$fit)
+pdns$lower <- plogis(pdns$fit - 1.96* pdns$se.fit)
+pdns$higher <- plogis(pdns$fit + 1.96* pdns$se.fit)
+
+preeef <- cbind(preeef, pdns)
+
+ee <- ggplot(exp3, aes(x = flight.direction)) + 
+  geom_bar(position = "fill", alpha = 0.5, aes(fill = side)) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5)) + 
+  geom_hline(aes(yintercept =  0.5)) + 
+  scale_fill_viridis(discrete = TRUE, option = "C") + 
+  facet_grid(bee.wind.orientation  ~  flow.category, labeller = labeller(.rows = label_both, .cols = label_both))
+ee
+ee + geom_point(data = preeef, aes(x = flight.direction, y = fit_prob)) + 
+  geom_errorbar(data = preeef, aes(ymin = lower, ymax = higher), width = 0.1) + 
+  labs(y = "Proportion of flights upwind")
+
+# diagnostics
+plot(m1, which = 4)
+
+#________________________________________________________________________ 
 # Generalized Linear Model, after removing the no wind category
+#________________________________________________________________________ 
+
+
+
+
+
+
 updn_sm <- updn[updn$bee.wind.orientation != "No wind'", ]
 
 # code the orientation as a factor
@@ -93,21 +423,116 @@ aa + geom_point(data = preddf, aes(y = fit, x = interaction(side, flow.category,
 
 # make 95% bootstrap CI's for proportions
 
-bootInd <- sample(1:nrow(updn), replace = TRUE)
-bootSamp <- updn[bootInd, ]
+bootfun <- function(o){
+  bootInd <- sample(1:nrow(updn), replace = TRUE)
+  bootSamp <- updn[bootInd, ]
+  
+  bootdf <- as.data.frame(prop.table(xtabs(~  bee.wind.orientation +side + 
+                                             flow.category + flight.direction, 
+                                           data = bootSamp), margin = c(2,3,4)))
+  
+  bootdf <- bootdf[bootdf$bee.wind.orientation == "Upwind'", ]
+  return(bootdf)
+}
 
-countDF <- as.data.frame(xtabs(~ bee.wind.orientation + side + flow.category + flight.direction, data = bootSamp))
-head(countDF)
+# boostrap 
+boots <- lapply(1:1000, bootfun)
 
-xtabs(~ bee.wind.orientation + side + flow.category + flight.direction, data = bootSamp)
+# combine bootstrap samples and do calculations
+combboot <- do.call(rbind, boots)
 
-bootdf <- as.data.frame(prop.table(xtabs(~  bee.wind.orientation +side + flow.category + flight.direction, data = bootSamp), margin = c(2,3,4)))
+bootMeans <- as.data.frame(tapply(X = combboot$Freq, INDEX = list(combboot$side, combboot$flow.category, combboot$flight.direction), mean))
 
-bootdf <- bootdf[bootdf$bee.wind.orientation == "Upwind'", ]
+bootMeans$side = row.names(bootMeans)
 
-ggplot(bootdf, aes(y = Freq, x = interaction(side, flow.category, flight.direction), color = bee.wind.orientation)) + 
+bootlo <- as.data.frame(tapply(X = combboot$Freq, INDEX = list(combboot$side, combboot$flow.category, combboot$flight.direction), quantile, 0.025))
+bootlo$side = row.names(bootlo)
+
+boothi <- as.data.frame(tapply(X = combboot$Freq, INDEX = list(combboot$side, combboot$flow.category, combboot$flight.direction), quantile, 0.975))
+boothi$side = row.names(boothi)
+
+bootdf2<- cbind(gather(boothi, side, hi), gather(bootlo, side, lo), gather(bootMeans,side, mean))
+
+# removed duplicated columns
+bootdf3 <- bootdf2[!duplicated(as.list(bootdf2))]
+
+
+# plot bootstrap mean proportions and 95% CI's for each mean
+ggplot(bootdf3, aes(y = mean, x = interaction(side, side.1))) + 
   geom_point() + 
   ylim(c(0, 1)) + 
-  ylab("predicted probablity of flying upwind") 
+  ylab("predicted probablity of flying upwind + 95% bootstrap CI's") +   
+  geom_errorbar(aes(ymin = lo, ymax = hi), width = 0.1) + 
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+# plot bootstrap on top of raw data
+ggplot(updn, aes(x = interaction(side, flow.category, flight.direction))) + 
+  geom_bar(position = "fill", aes(fill = bee.wind.orientation)) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+  geom_hline(aes(yintercept =  0.5), linetype = 2) + 
+  geom_point(data = bootdf3, aes(y = mean, x = interaction(side, side.1))) + 
+  ylab("predicted probablity of flying upwind + 95% bootstrap CI's") +   
+  geom_errorbar(data = bootdf3, aes(x = interaction(side, side.1), 
+                                    ymin = bootdf3$lo, ymax = bootdf3$hi), width = 0.1) 
+
+# plot without control treatment
+updn2 <- updn[updn$flow.category != "None'", ]
+boot3df2 <- bootdf3[bootdf3$hi != 0, ]
+
+ggplot(updn2, aes(x = interaction(side, flow.category, flight.direction))) + 
+  geom_bar(position = "fill", aes(fill = bee.wind.orientation), alpha = 0.6) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+  geom_hline(aes(yintercept =  0.5), linetype = 2) + 
+  geom_point(data = boot3df2, aes(y = mean, x = interaction(side, side.1))) + 
+  ylab("predicted probablity of flying upwind + 95% bootstrap CI's") + 
+  xlab("treatment") + 
+  geom_errorbar(data = boot3df2, aes(x = interaction(side, side.1), 
+                                    ymin = boot3df2$lo, ymax = boot3df2$hi), width = 0.1)  + 
+  scale_fill_viridis(discrete = TRUE, begin = 0.5, end = 0.8, option = "B")
+
+
+
+#________________________________________________________________________  
+############################ another approach ###########################
+# Generalized Linear Model, where right or left is the thing of interest
+#________________________________________________________________________ 
+
+
+
+# code the side 1 = right, 0 = left
+updn$side_int <- mapvalues(updn$side, 
+                           from = c("Left'", "Right'"), 
+                           to = c(0, 1))
+
+
+# shows a problem with aliased coefficients
+car::vif(lm(rnorm(nrow(updn)) ~ flow.category + bee.wind.orientation  +  flight.direction,  data = updn))
+alias(lm(rnorm(nrow(updn)) ~ flow.category + bee.wind.orientation  +  flight.direction,  data = updn))
+
+# bee.wind.orientation, "No Wind" is aliased with flow.category, "None".
+# we can get around this problem by making a new variable, that combines these into a single group
+
+updn$treatment <- interaction(updn$flow.category, updn$bee.wind.orientation)
+
+# now VIF is fine
+car::vif(lm(rnorm(nrow(updn)) ~ treatment  +  flight.direction,  data = updn))
+
+
+m1 <- glm(side_int ~ treatment * flight.direction, family = binomial("logit"), data = updn)
+summary(m1)
+
+
+drop1(m1, test = 'LRT') #can't drop any variables
+
+# visualize this model
+# re-order the levels for plotting
+
+
+
+
+
+
+
+
 
