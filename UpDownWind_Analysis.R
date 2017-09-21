@@ -31,6 +31,12 @@ ggplot(updn, aes(x = interaction(side, flow.category, flight.direction), fill = 
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 
+ggplot(updn, aes(x = interaction(side, flow.category, flight.direction), fill = bee.wind.orientation)) + 
+  geom_bar() + 
+  facet_wrap(~day) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
 ggplot(updn, aes(x = interaction(flight.direction, side), fill = bee.wind.orientation)) + 
   geom_bar() + 
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
@@ -127,8 +133,19 @@ cc
 #________________________________________________________________________ 
 
 exp1 <- updn[updn$experiment == levels(updn$experiment)[1], ]
-exp1 <- updn[updn$experiment == levels(updn$experiment)[1] & updn$flight.direction == "Nectar'", ]
+# exp1 <- updn[updn$experiment == levels(updn$experiment)[1] & updn$flight.direction == "Nectar'", ]
 colnames(exp1)
+
+
+bb <- ggplot(exp1, aes(x = trt, fill  = bee.wind.orientation)) + 
+  geom_bar(position = "identity", alpha = 0.5) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5)) + 
+  geom_hline(aes(yintercept =  0.5)) + 
+  scale_fill_viridis(discrete = TRUE) 
+bb
+
+bb + facet_wrap(~day)
+
 
 
 #Simpson's paradox
@@ -249,7 +266,7 @@ table(exp1$fly_upwind)
 car::vif(lm(as.numeric(fly_upwind) ~ side  +  flight.direction + day, data = exp1))
 
 # model full interaction
-m1 <- glm(fly_upwind ~ (side  +  flight.direction + day)^2, data = exp1, family = binomial("logit"))
+m1 <- glm(fly_upwind ~ (side  +  flight.direction)^2, data = exp1, family = binomial("logit"))
 m1 <- glm(fly_upwind ~ ( flight.direction + day)^2 + side, data = exp1, family = binomial("logit"))
 summary(m1)
 
