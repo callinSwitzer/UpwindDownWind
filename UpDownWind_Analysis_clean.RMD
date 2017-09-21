@@ -200,13 +200,13 @@ cc + geom_point(data = CIs, aes(x = side, y = mean)) +
 colnames(exp1)
 
 
-# here
-cc <- ggplot(exp1[exp1$day == exp1$day[1], ], aes(x = flight.direction)) + 
-  geom_bar(position = "identity", alpha = 0.5, aes(fill = bee.wind.orientation)) + 
+# here -- confused
+cc <- ggplot(exp1, aes(x = flight.direction)) + 
+  geom_bar(aes( fill = bee.wind.orientation), stat="count") + 
   theme(axis.text.x = element_text(angle = 90, hjust = 0.5)) + 
   geom_hline(aes(yintercept =  0.5), linetype = 2) + 
   scale_fill_viridis(discrete = TRUE) + 
-  facet_grid(~side , labeller = labeller(.rows = label_both, .cols = label_both))
+  facet_grid(side ~ day , labeller = labeller(.rows = label_both, .cols = label_both))
 cc
 
 

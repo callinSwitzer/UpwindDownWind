@@ -29,6 +29,42 @@ ggplot(updn, aes(x = interaction(side, flow.category, flight.direction), fill = 
   geom_bar() + 
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
+
+ggplot(updn, aes(x = interaction(flight.direction, side), fill = bee.wind.orientation)) + 
+  geom_bar() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# this is the cause of "simpson's paradox"
+ggplot(updn, aes(x = interaction(flight.direction, side), fill = bee.wind.orientation)) + 
+  geom_bar() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplot(updn[updn$bee.wind.orientation != "No wind'",], aes(x = interaction(flight.direction, side), fill = bee.wind.orientation)) + 
+  geom_bar() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+
+
+ggplot(updn[updn$bee.wind.orientation != "No wind'",], aes(x = interaction(side), 
+                                                           fill = bee.wind.orientation)) + 
+  geom_bar() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+ggplot(updn[updn$bee.wind.orientation != "No wind'",], aes(x = interaction(flight.direction, side, flow.category), fill = bee.wind.orientation)) + 
+  geom_bar() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+aa <- ggplot(updn, aes(x = interaction(side, flow.category, flight.direction), fill = bee.wind.orientation)) + 
+  geom_bar() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+  geom_hline(aes(yintercept =  0.5))
+aa
+
+
+
 # plot proportions
 aa <- ggplot(updn, aes(x = interaction(side, flow.category, flight.direction), fill = bee.wind.orientation)) + 
   geom_bar(position = "fill") + 
@@ -81,12 +117,96 @@ cc
 
 
 
+
+
+
+
 #________________________________________________________________________ 
 # Analyze each experiment separately
 #________________________________________________________________________ 
 
 exp1 <- updn[updn$experiment == levels(updn$experiment)[1], ]
+exp1 <- updn[updn$experiment == levels(updn$experiment)[1] & updn$flight.direction == "Nectar'", ]
 colnames(exp1)
+
+
+#Simpson's paradox
+# plot #1 (slices data differently than below)
+ggplot(exp1, aes(x = flight.direction)) + 
+  geom_bar(alpha = 0.5, aes(fill = bee.wind.orientation)) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5)) + 
+  scale_fill_viridis(discrete = TRUE) + 
+  facet_grid(~side, labeller = labeller(.rows = label_both, .cols = label_both))+
+  labs(y = "Count of flights")
+
+# if you look at each day, then the trend seems to be reversed
+ggplot(exp1, aes(x = flight.direction)) + 
+  geom_bar(alpha = 0.5, aes(fill = bee.wind.orientation)) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5)) + 
+  scale_fill_viridis(discrete = TRUE) + 
+  facet_grid(day~side, labeller = labeller(.rows = label_both, .cols = label_both))+
+  labs(y = "Count of flights")
+
+ggplot(exp1, aes(x = flight.direction)) + 
+  geom_bar(alpha = 0.5, aes(fill = bee.wind.orientation)) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5)) + 
+  scale_fill_viridis(discrete = TRUE) + 
+  facet_grid(~side, labeller = labeller(.rows = label_both, .cols = label_both))+
+  labs(y = "Count of flights")
+
+
+
+
+ggplot(exp1, aes(x = side)) + 
+  geom_bar(alpha = 0.5, aes(fill = bee.wind.orientation)) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5)) + 
+  scale_fill_viridis(discrete = TRUE) + 
+  facet_grid(~bee.wind.orientation, labeller = labeller(.rows = label_both, .cols = label_both))+
+  labs(y = "Count of flights")
+
+ggplot(exp1, aes(x = flight.direction)) + 
+  geom_bar(alpha = 0.5, aes(fill = bee.wind.orientation)) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5)) + 
+  scale_fill_viridis(discrete = TRUE) + 
+  facet_grid(~day, labeller = labeller(.rows = label_both, .cols = label_both))+
+  labs(y = "Count of flights")
+
+# if you don't 
+ggplot(exp1, aes(x= interaction(flight.direction))) + 
+  geom_bar(alpha = 0.5, aes(fill = bee.wind.orientation)) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5)) + 
+  scale_fill_viridis(discrete = TRUE) + 
+  facet_grid(day~side ,space = 'free', labeller = labeller(.cols = label_both))+
+  labs(y = "Count of flights")
+
+# if you don't
+ggplot(exp1[exp1$flight.direction == "Nectar'", ], aes(x= interaction(flight.direction))) + 
+  geom_bar(alpha = 0.5, aes(fill = bee.wind.orientation)) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5)) + 
+  scale_fill_viridis(discrete = TRUE) + 
+  facet_grid(day~side ,space = 'free', labeller = labeller(.cols = label_both))+
+  labs(y = "Count of flights")
+
+
+ggplot(exp1, aes(x = day)) + 
+  geom_bar(alpha = 0.5, aes(fill = bee.wind.orientation)) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5)) + 
+  scale_fill_viridis(discrete = TRUE) + 
+  facet_grid(flight.direction ~side + day, labeller = labeller(.rows = label_both, .cols = label_both))+
+  labs(y = "Count of flights")
+
+# seemingly contradictory plots (doesn't account for right vs. left side and flight direction at the same time)
+ggplot(exp1, aes(x = flight.direction, fill  = bee.wind.orientation)) + 
+  geom_bar( alpha = 0.5) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5)) + 
+  scale_fill_viridis(discrete = TRUE) 
+
+ggplot(exp1, aes(x = interaction(flight.direction, bee.wind.orientation), fill  = bee.wind.orientation)) + 
+  geom_bar( alpha = 0.5) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5)) + 
+  scale_fill_viridis(discrete = TRUE) + 
+  facet_wrap(~day)
+
 
 cc <- ggplot(exp1, aes(x = side, fill = bee.wind.orientation)) + 
   geom_bar(position = "identity", alpha = 0.5) + 
@@ -125,19 +245,85 @@ table(exp1$fly_upwind)
 
 
 # check VIF
-car::vif(lm(as.numeric(fly_upwind) ~ side  +  flight.direction, data = exp1))
+car::vif(lm(as.numeric(fly_upwind) ~ side  +  flight.direction + day, data = exp1))
 
 # model full interaction
-m1 <- glm(fly_upwind ~ side  *  flight.direction, data = exp1, family = binomial("logit"))
+m1 <- glm(fly_upwind ~ (side  +  flight.direction + day)^2, data = exp1, family = binomial("logit"))
+m1 <- glm(fly_upwind ~ ( flight.direction + day)^2 + side, data = exp1, family = binomial("logit"))
 summary(m1)
+
+alias((lm(as.numeric(fly_upwind) ~ (side  +  flight.direction + day)^2, data = exp1)), partial = TRUE)
+car::vif((lm(as.numeric(fly_upwind) ~ (side  +  flight.direction + day)^2, data = exp1)), partial = TRUE)
+
+drop1(m1, test = "LRT")
+
+m2 <- update(m1, .~. -flight.direction:day)
+summary(m2)
+drop1(m2, test = "LRT")
+
+m3 <- update(m2, .~. - day)
+drop1(m3, test = "LRT")
+summary(m3)
+
+m4 <- update(m3, .~. - flight.direction)
+summary(m4)
+
+
 
 # diagnostics
 plot(m1, which = 4)
 
 
+# visualize results
+# calculate confidence intervals for predictions
+preddf <- exp1[, c("side", "flight.direction", "flow.category", "day", "bee.wind.orientation")]
+preddf <- expand.grid(side = unique(exp1$side), flight.direction = unique(exp1$flight.direction), 
+                      day = unique(exp1$day), bee.wind.orientation = unique(exp1$bee.wind.orientation))
+
+
+
+pdns <- data.frame(predict(m3, newdata = preddf, type = "link", se.fit = TRUE))
+pdns$fit_prob = plogis(pdns$fit)
+pdns$lower <- plogis(pdns$fit - 1.96* pdns$se.fit)
+pdns$higher <- plogis(pdns$fit + 1.96* pdns$se.fit)
+
+pdns <- data.frame(predict(m1, newdata = preddf, type = "link", se.fit = TRUE))
+pdns$fit_prob = plogis(pdns$fit)
+pdns$lower <- plogis(pdns$fit - 1.96* pdns$se.fit)
+pdns$higher <- plogis(pdns$fit + 1.96* pdns$se.fit)
+
+preddf <- cbind(preddf, pdns)
+
+
+
+
+preddf
+
+ggplot(exp1, aes(x = day)) + 
+  geom_bar(alpha = 0.5, position = "identity" aes(fill = bee.wind.orientation)) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5)) + 
+  scale_fill_viridis(discrete = TRUE) + 
+  labs(y = "Count of flights")
+
+ab <- ggplot(preddf, aes(x = interaction(day) )) + 
+  geom_point(aes(y = fit_prob, color = day)) + 
+  facet_grid(side ~ flight.direction) + 
+  ylim(c(0,1)) + 
+  labs(y = 'predicted probability of flying upwind') + 
+  geom_errorbar(aes(ymin = lower, ymax = higher, color = day), width = 0.1) + 
+  geom_hline(aes(yintercept = 0.5), linetype = 2)
+ab 
+colnames(exp1)
+
+# calculate averages from dataset
+xtabs(~bee.wind.orientation + flight.direction + day +  side, droplevels(exp1))
+
+ab + 
+  geom_bar(data = exp1, aes(x = day, color = ), position = 'fill', alpha = 0.1)
+
 # post-hoc test to see if pref is greater than 0.5 in all categories
 
-exp1$intVar <- with(exp1, interaction(side, flight.direction))
+exp1$intVar <- with(exp1, interaction(flight.direction, day))
 exp1$intVar <- gsub("[[:punct:]]", "", exp1$intVar) 
 
 
