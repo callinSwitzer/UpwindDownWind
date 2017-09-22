@@ -8,8 +8,8 @@ carcount <- function(o, plot = FALSE){
   # fast car leave times
   timestart2 <- sort(runif(n = 10, 0,30))
   
-  speedSlow = 25
-  speedFast = 80
+  speedSlow = rnorm(n = 10, mean = 40, sd = 10)
+  speedFast = rnorm(n = 10, mean = 80, sd = 30)
   
   timeLeaveRoad1 <- timestart1 + 60/speedSlow
   timeLeaveRoad2 <- timestart2 + 60/speedFast

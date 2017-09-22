@@ -146,6 +146,26 @@ ggplot(exp1, aes(x = bee.wind.orientation, y = abs(y.velocity.avg), fill = day))
   geom_boxplot() + 
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
+ggplot(updn, aes(x = bee.wind.orientation, y = abs(y.velocity.avg))) +
+  geom_boxplot() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+
+ggplot(updn, aes(x = day, y = abs(y.velocity.avg), fill = (bee.wind.orientation))) +
+  geom_boxplot() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+
+
+ggplot(updn, aes(x = day, y = abs(y.velocity.avg), fill = (bee.wind.orientation))) +
+  geom_boxplot() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+
+modVel <- lm((abs(y.velocity.avg)) ~ bee.wind.orientation, data = updn)
+summary(modVel)
+
+par(mfrow = c(2,3))
+plot(modVel, which = 1:6)
+
+
 
 bb <- ggplot(exp1, aes(x = trt, fill  = bee.wind.orientation)) + 
   geom_bar(position = "identity", alpha = 0.5) + 
