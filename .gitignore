@@ -40,5 +40,5 @@ vignettes/*.pdf
 .DS_Store
 
 # ignore all subdirectoies
-*/*
+# */*
 .Rproj.user
