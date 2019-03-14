@@ -4,12 +4,12 @@ editor_options:
   chunk_output_type: console
 ---
 ## Callin Switzer
-## 20 Sept 2017
+## Initial Code: 20 Sept 2017
 ## Analysis of upwind / downwind data
-## 2 March 2019
+## Update: 2 March 2019
 ##
 
-
+---
 
 # Setup
 
@@ -45,7 +45,7 @@ print(R.version)
 
 # Import
 
-```{r}
+```{r, message = FALSE}
 updn <- read_csv(file.path(dataDir, "Data2D_UpwindDownwind.csv"))
 ```
 
@@ -96,9 +96,29 @@ updn
 
 # Visualize
 
+
 ```{r}
+aa <- ggplot(updn, aes(x = flight_direction, fill  = bee_wind_orientation)) + 
+  geom_bar(alpha = 0.7) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5)) + 
+  geom_hline(aes(yintercept =  0.5)) + 
+  scale_fill_viridis_d() 
+
+aa#+ facet_wrap(~day)
 
 
+aa <- ggplot(updn, aes(fill = flight_direction, x  = bee_wind_orientation)) + 
+  geom_bar(position = "fill", alpha = 0.7) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5)) + 
+  geom_hline(aes(yintercept =  0.5)) + 
+  scale_fill_viridis_d() + 
+  labs(y = "proportion")
+
+aa#+ facet_wrap(~day)
+
+```
+
+```{r, results = "hide", fig.show = "hide"}
 # Is there "conservation of bee"?
 # do the same number of bees go out as go in?
 ggplot(updn, aes(x = flight_direction, fill = bee_wind_orientation)) + 
@@ -153,10 +173,6 @@ aa <- ggplot(updn, aes(x = interaction(side, fast_slow, flight_direction), fill 
 aa
 
 
-
-
-
-
 bb <- ggplot(updn, aes(x = trt, fill  = bee_wind_orientation)) + 
   geom_bar(position = "identity", alpha = 0.5) + 
   theme(axis.text.x = element_text(angle = 90, hjust = 0.5)) + 
@@ -206,7 +222,7 @@ cc
 ```{r}
 
 #________________________________________________________________________ 
-# Analyze each experiment separately
+# Analysis for exp 1
 #________________________________________________________________________ 
 
 exp1 <- updn[updn$experiment == levels(updn$experiment)[1], ] %>% droplevels()
@@ -214,53 +230,23 @@ summary(exp1)
 
 colnames(exp1)
 
-# # visualize speed of bees in two conditions
-# ggplot(exp1, aes(x = fast_slow, y = abs(y.velocity.avg), fill = day)) +
-#   facet_grid(side ~ flight_direction) + 
-#   geom_boxplot() + 
-#   theme(axis.text.x = element_text(angle = 45, hjust = 1))
-# 
-# ggplot(exp1, aes(x = bee_wind_orientation, y = abs(y.velocity.avg), fill = day)) +
-#   geom_boxplot() + 
-#   theme(axis.text.x = element_text(angle = 45, hjust = 1))
-# 
-# ggplot(updn, aes(x = bee_wind_orientation, y = abs(y.velocity.avg))) +
-#   geom_boxplot() + 
-#   theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
-# 
-# ggplot(updn, aes(x = day, y = abs(y.velocity.avg), fill = (bee_wind_orientation))) +
-#   geom_boxplot() + 
-#   theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
-# 
-# 
-# ggplot(updn, aes(x = day, y = abs(y.velocity.avg), fill = (bee_wind_orientation))) +
-#   geom_boxplot() + 
-#   theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
-# 
-# modVel <- lm((abs(y.velocity.avg)) ~ bee_wind_orientation, data = updn)
-# summary(modVel)
-# 
-# par(mfrow = c(2,3))
-# plot(modVel, which = 1:6)
 
-# refref: do a thought-experiment / simulation to see, what if it was only one bee going in circles?
-
-bb <- ggplot(exp1, aes(x = trt, fill  = bee_wind_orientation)) + 
-  geom_bar(position = "identity", alpha = 0.5) + 
+bb <- ggplot(exp1, aes(x = flight_direction, fill  = bee_wind_orientation)) + 
+  geom_bar(alpha = 0.7) + 
   theme(axis.text.x = element_text(angle = 90, hjust = 0.5)) + 
   geom_hline(aes(yintercept =  0.5)) + 
   scale_fill_viridis_d() 
-bb
 
-bb + facet_wrap(~day)
-
-
-
+bb #+ facet_wrap(~day)
 
 # conservation of bee?
 table(exp1$flight_direction)
 prop.test(618, 1174, correct = TRUE)
 
+```
+
+
+```{r, eval = FALSE}
 bb <- ggplot(exp1, aes(x = flight_direction, fill  = bee_wind_orientation)) + 
   geom_bar(alpha = 0.5) + 
   theme(axis.text.x = element_text(angle = 90, hjust = 0.5)) + 
@@ -306,6 +292,40 @@ cc <- ggplot(exp1, aes(x = side, fill = bee_wind_orientation)) +
   facet_grid( flight_direction ~  fast_slow, labeller = labeller(.rows = label_both, .cols = label_both))
 cc
 
+
+
+
+
+# # visualize speed of bees in two conditions
+# ggplot(exp1, aes(x = fast_slow, y = abs(y.velocity.avg), fill = day)) +
+#   facet_grid(side ~ flight_direction) + 
+#   geom_boxplot() + 
+#   theme(axis.text.x = element_text(angle = 45, hjust = 1))
+# 
+# ggplot(exp1, aes(x = bee_wind_orientation, y = abs(y.velocity.avg), fill = day)) +
+#   geom_boxplot() + 
+#   theme(axis.text.x = element_text(angle = 45, hjust = 1))
+# 
+# ggplot(updn, aes(x = bee_wind_orientation, y = abs(y.velocity.avg))) +
+#   geom_boxplot() + 
+#   theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+# 
+# ggplot(updn, aes(x = day, y = abs(y.velocity.avg), fill = (bee_wind_orientation))) +
+#   geom_boxplot() + 
+#   theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+# 
+# 
+# ggplot(updn, aes(x = day, y = abs(y.velocity.avg), fill = (bee_wind_orientation))) +
+#   geom_boxplot() + 
+#   theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+# 
+# modVel <- lm((abs(y.velocity.avg)) ~ bee_wind_orientation, data = updn)
+# summary(modVel)
+# 
+# par(mfrow = c(2,3))
+# plot(modVel, which = 1:6)
+
+# refref: do a thought-experiment / simulation to see, what if it was only one bee going in circles?
 
 ```
 
@@ -355,6 +375,9 @@ exp1 %>%
   summarize( n = n()) %>%
   spread(key = bee_wind_orientation, value = n)
 
+# could switch to sum contrasts -- might make model more interpretable
+# options(contrasts=c('contr.sum','contr.poly'))
+options(contrasts=c('contr.treatment','contr.poly'))
 
 m1 <- glm(cbind(Upwind, Downwind)  ~ day * flight_direction, data = ex1, family = "binomial")
 summary(m1)
@@ -401,7 +424,7 @@ ggsave(filename = file.path(figDir, "exp1.png"), plot = ab, width = 8, height = 
 ```
 
 
-```{r, eval = F}
+```{r, eval = F, echo = FALSE}
 # Poisson Version 
 
 
@@ -560,7 +583,7 @@ exp2_2
 
 
 
-# in this data frame, I've removed side and day, but there is still confounding
+# in this data frame, I've removed side and day
 exp2_3 <- exp2 %>%
   select( bee_wind_orientation, flight_direction, fast_slow) %>%
   group_by(flight_direction, bee_wind_orientation, fast_slow) %>%
@@ -615,7 +638,7 @@ ggsave(filename = file.path(figDir, "exp2.png"), plot = ac, width = 5, height = 
 
 ```
 
-```{r}
+```{r, eval = FALSE, echo = FALSE}
 # 
 # # calculate averages from dataset
 # poisDF3 <- as.data.frame(xtabs(~bee_wind_orientation + flight_direction + day +  side + fast_slow, droplevels(exp2)))
@@ -733,85 +756,149 @@ ggsave(filename = file.path(figDir, "exp2.png"), plot = ac, width = 5, height = 
 exp3 <- updn[updn$experiment %in% levels(updn$experiment)[4], ]
 colnames(exp3)
 
-ggplot(exp3, aes(x = interaction(side, fast_slow, flight_direction), fill = side)) + 
+# there are more bees coming towards the colony
+prop.test(table(exp3$flight_direction))
+
+# this plot shows the difference
+ggplot(exp3, aes(x = flight_direction, fill = side)) + 
   geom_bar() + 
+  facet_wrap(~day)+
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-ggplot(exp3, aes(x = interaction(flight_direction), fill = side)) + 
-  geom_bar() + 
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 
 
-# calculate averages from dataset
-poisDF3 <- as.data.frame(xtabs(~bee_wind_orientation + flight_direction + day +  side + fast_slow, droplevels(exp3)))
+exp_3 <- exp3 %>%
+  select(day, side, flight_direction ) %>%
+  group_by(flight_direction, day, side) %>%
+  summarize( n = n()) %>%
+  spread(key = side, value = n) %>%
+  arrange(day) %>%
+  mutate(rightPercent = Right / (Left + Right))
+exp_3
 
 
-daySums <- as.data.frame(tapply(poisDF3$Freq, INDEX = list(poisDF3$day, poisDF3$side), sum))
-daySums$day <- row.names(daySums)
+m3.1 <- glm(cbind(Right, Left)  ~ flight_direction * day, data = exp_3, family = "binomial")
+summary(m3.1)
+drop1(m3.1, test = "LRT")
 
-daySums_l <- as.data.frame(gather(daySums, key = day))
-colnames(daySums_l) <- c("day", "side", "day_side_total")
+m3.2 <- update(m3.1, .~. - flight_direction : day)
+summary(m3.2)
+drop1(m3.2, test = "LRT")
 
+m3.3 <- update(m3.2, .~. - flight_direction)
+summary(m3.3)
+drop1(m3.3, test = "LRT")
 
-p3 <- merge(poisDF3, daySums_l, by.x = c("day", "side"), by.y = c("day", "side"))
-
-
-
-
-p3$dayPercents <- p3$Freq / p3$day_side_total
-
-p3 <- p3[p3$Freq > 0, ]
-p3
-
-m2.1 <- glm(Freq ~ (flight_direction + side)^2 + offset(log(day_side_total)), data = p3, family = poisson("log"))
-summary(m2.1)
-
-car::vif(lm(Freq ~ (flight_direction + side)^2 + offset(log(day_side_total)), data = p3))
-
-drop1(m2.1, test = 'LRT')
-
-m2.2 <- update(m2.1, .~. - flight_direction:side)
-summary(m2.2)
-drop1(m2.2, test = 'LRT')
+finmod <- m3.3
+summary(finmod)
 
 
 
-m2.3 <- update(m2.2, .~. - side)
-summary(m2.3)
+# visualize results
+# calculate confidence intervals for predictions
+preddf <- exp3[, c("flight_direction", "day")]
+preddf <- expand.grid(flight_direction = unique(exp3$flight_direction), 
+                      day = unique(exp3$day))
 
-preddf2 <- p3
-preddf2$day_side_total <- 1
+pdns <- data.frame(predict(finmod, newdata = preddf, type = "link", se.fit = TRUE))
+pdns$fit_prob = plogis(pdns$fit)
+pdns$lower <- plogis(pdns$fit - 1.96* pdns$se.fit)
+pdns$higher <- plogis(pdns$fit + 1.96* pdns$se.fit)
+
+pdns <- data.frame(predict(finmod, newdata = preddf, type = "link", se.fit = TRUE))
+pdns$fit_prob = plogis(pdns$fit)
+pdns$lower <- plogis(pdns$fit - 1.96* pdns$se.fit)
+pdns$higher <- plogis(pdns$fit + 1.96* pdns$se.fit)
+
+preddf <- cbind(preddf, pdns)
+
+ad <- ggplot(preddf, aes(x = day)) + 
+  scale_y_continuous( limits = c(0,1), expand = c(0,0) ) + 
+  labs(y = 'Predicted probability of flying on the right side', x = "Day") + 
+  geom_errorbar(aes(ymin = lower, ymax = higher), color = "black",  width = 0.1) + 
+  geom_hline(aes(yintercept = 0.5), linetype = 2, color = 'grey') + 
+ geom_point(aes(y = fit_prob))
+ad 
+
+
+# save plot
+ggsave(filename = file.path(figDir, "exp3_control.png"), plot = ad, width = 4, height = 6, dpi = 250)
+
+```
 
 
 
-pds <- predict(m2.3,newdata = preddf2, type = "link", se.fit = TRUE)
-
-p3$predds <- exp(pds$fit)
-p3$lower <- exp(pds$fit - 1.96*pds$se.fit)
-p3$higher <- exp(pds$fit + 1.96*pds$se.fit)
-p3
-
-
-# plot actual data and predictions
-
-ggplot(p3, aes(x = flight_direction, y = dayPercents))+ 
-  geom_point() + 
-  facet_grid(~day) + 
-  geom_errorbar(aes(ymin = lower, ymax = higher), width = 0.1) + 
-  geom_hline(aes(yintercept = 0.5), linetype = 2) + 
-  geom_point(aes(y = predds), position = position_jitter(width = 0.1, height = 0), color = 'grey')
-
-
-# plot actual data vs. predictions (again)
-set.seed(123)
-ggplot(p3, aes(x = flight_direction, y = dayPercents))+ 
-  geom_point(position = position_jitter(width = 0.03), alpha = 0.2) + 
-  geom_errorbar(aes(ymin = lower, ymax = higher), width = 0.05, color = 'black') + 
-  geom_hline(aes(yintercept = 0.5), linetype = 2) + 
-  geom_point(aes(y = predds), color = 'black') + 
-  labs(x = "bee wind orientation", y = "probability of flight") +
-  ylim(c(0,1)) + 
-  ggtitle("Flight probablility for experiment 3 (no wind)")
+```{r, eval = FALSE, echo = FALSE}
+# # calculate averages from dataset
+# poisDF3 <- as.data.frame(xtabs(~bee_wind_orientation + flight_direction + day +  side + fast_slow, droplevels(exp3)))
+# 
+# 
+# daySums <- as.data.frame(tapply(poisDF3$Freq, INDEX = list(poisDF3$day, poisDF3$side), sum))
+# daySums$day <- row.names(daySums)
+# 
+# daySums_l <- as.data.frame(gather(daySums, key = day))
+# colnames(daySums_l) <- c("day", "side", "day_side_total")
+# 
+# 
+# p3 <- merge(poisDF3, daySums_l, by.x = c("day", "side"), by.y = c("day", "side"))
+# 
+# 
+# 
+# 
+# p3$dayPercents <- p3$Freq / p3$day_side_total
+# 
+# p3 <- p3[p3$Freq > 0, ]
+# p3
+# 
+# m2.1 <- glm(Freq ~ (flight_direction + side)^2 + offset(log(day_side_total)), data = p3, family = poisson("log"))
+# summary(m2.1)
+# 
+# car::vif(lm(Freq ~ (flight_direction + side)^2 + offset(log(day_side_total)), data = p3))
+# 
+# drop1(m2.1, test = 'LRT')
+# 
+# m2.2 <- update(m2.1, .~. - flight_direction:side)
+# summary(m2.2)
+# drop1(m2.2, test = 'LRT')
+# 
+# 
+# 
+# m2.3 <- update(m2.2, .~. - side)
+# summary(m2.3)
+# 
+# preddf2 <- p3
+# preddf2$day_side_total <- 1
+# 
+# 
+# 
+# pds <- predict(m2.3,newdata = preddf2, type = "link", se.fit = TRUE)
+# 
+# p3$predds <- exp(pds$fit)
+# p3$lower <- exp(pds$fit - 1.96*pds$se.fit)
+# p3$higher <- exp(pds$fit + 1.96*pds$se.fit)
+# p3
+# 
+# 
+# # plot actual data and predictions
+# 
+# ggplot(p3, aes(x = flight_direction, y = dayPercents))+ 
+#   geom_point() + 
+#   facet_grid(~day) + 
+#   geom_errorbar(aes(ymin = lower, ymax = higher), width = 0.1) + 
+#   geom_hline(aes(yintercept = 0.5), linetype = 2) + 
+#   geom_point(aes(y = predds), position = position_jitter(width = 0.1, height = 0), color = 'grey')
+# 
+# 
+# # plot actual data vs. predictions (again)
+# set.seed(123)
+# ggplot(p3, aes(x = flight_direction, y = dayPercents))+ 
+#   geom_point(position = position_jitter(width = 0.03), alpha = 0.2) + 
+#   geom_errorbar(aes(ymin = lower, ymax = higher), width = 0.05, color = 'black') + 
+#   geom_hline(aes(yintercept = 0.5), linetype = 2) + 
+#   geom_point(aes(y = predds), color = 'black') + 
+#   labs(x = "bee wind orientation", y = "probability of flight") +
+#   ylim(c(0,1)) + 
+#   ggtitle("Flight probablility for experiment 3 (no wind)")
 
 ```
