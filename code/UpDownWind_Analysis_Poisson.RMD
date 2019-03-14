@@ -424,114 +424,110 @@ ggsave(filename = file.path(figDir, "exp1.png"), plot = ab, width = 8, height = 
 ```
 
 
-```{r, eval = F, echo = FALSE}
-# Poisson Version 
+```{r}
+# Poisson Version for exp1
 
 
-# # calculate averages from dataset
-# poisDF <- as.data.frame(xtabs(~bee_wind_orientation + flight_direction + day +  side, droplevels(exp1)))
-# poisDF
-# 
-# 
-# # refref: there is a problem that some treatments are 0 on some days
-# ggplot(poisDF, aes(fill = bee_wind_orientation, y = Freq, x = interaction(bee_wind_orientation, side, flight_direction))) + 
-#          geom_bar(stat = "identity") + 
-#   facet_grid(.~day) + 
-#   theme(axis.text.x = element_text(angle = 90, hjust = 0.5))
-# 
-# 
-# daySums <- as.data.frame(tapply(poisDF$Freq, INDEX = list(poisDF$day, poisDF$side), sum))
-# daySums$day <- row.names(daySums)
-#   
-# daySums_l <- as.data.frame(gather(data = daySums, key = "side", value = "day_side_total", -day))
-# daySums_l
-# 
-# 
-# posdf2 <- merge(poisDF, daySums_l, by.x = c("day", "side"), by.y = c("day", "side"))
-# posdf2
-# 
-# 
-# 
-# posdf2$dayPercents <- posdf2$Freq / posdf2$day_side_total
-# 
-# posdf2 <- posdf2[posdf2$Freq > 0, ]
-#   
-#   
-# m1.1 <- glm(Freq ~ (bee_wind_orientation + flight_direction + day )^2 + offset(log(day_side_total)), data = posdf2, family = poisson("log"))
-# summary(m1.1)
-# 
-# car::vif(m1.1) # kind of high vif
-# 
-# drop1(m1.1, test = 'LRT')
-# 
-# m1.2 <- update(m1.1, .~. - flight_direction:day)
-# summary(m1.2)
-# drop1(m1.2, test = 'LRT')
-# 
-# m1.3 <- update(m1.2, .~. - bee_wind_orientation:day)
-# summary(m1.3)
-# drop1(m1.3, test = 'LRT')
-# 
-# m1.4 <- update(m1.3, .~. - bee_wind_orientation:flight_direction)
+# calculate averages from dataset
+
+poisDF <- exp1 %>%
+  select(bee_wind_orientation, flight_direction, day, side) %>%
+  group_by(bee_wind_orientation, flight_direction, day, side) %>%
+  summarize( Freq  = n()) %>%
+  arrange(day, side)
+
+
+daysums <- poisDF %>%
+  group_by(day) %>%
+  summarize(day_side_total = sum(Freq))
+
+poisDF2 <- full_join(poisDF, daysums) %>%
+  mutate(daySidePercents = Freq /day_side_total)
+poisDF2
+
+
+# refref: there is a confounding by day that some treatments are impossible
+ggplot(poisDF2, aes(fill = bee_wind_orientation, y = Freq, x = interaction(bee_wind_orientation, side, flight_direction))) +
+         geom_bar(stat = "identity") +
+  facet_grid(.~day) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5))
+
+
+## there is aliasing if I keep day in 
+m1.1 <- glm(Freq ~ (bee_wind_orientation + flight_direction +  side)^2 + offset(log(day_side_total)), data = poisDF2, family = poisson("log"))
+summary(m1.1)
+
+car::vif(m1.1) # kind of high vif
+
+drop1(m1.1, test = 'LRT')
+
+m1.2 <- update(m1.1, .~. - flight_direction:side)
+summary(m1.2)
+drop1(m1.2, test = 'LRT')
+
+m1.3 <- update(m1.2, .~. - bee_wind_orientation:side)
+summary(m1.3)
+drop1(m1.3, test = 'LRT')
+
+# m1.4 <- update(m1.3, .~. - bee_wind_orientation:day)
 # summary(m1.4)
 # drop1(m1.4, test = 'LRT')
-# 
-# m1.5 <- update(m1.4, .~. - day)
-# summary(m1.5)
-# drop1(m1.5, test = 'LRT')
-# 
-# finMod = m1.5
-# summary(finMod) # weird that bees are more likely to fly away from feeder
-# 
-# 
-# preddf2 <- posdf2
-# preddf2$day_side_total <- 1
-# 
-# confint(finMod)
-# 
-# pds <- predict(finMod,newdata = preddf2, type = "link", se.fit = TRUE)
-# 
-# posdf2$predds <- exp(pds$fit)
-# posdf2$lower <- exp(pds$fit - 1.96*pds$se.fit)
-# posdf2$higher <- exp(pds$fit + 1.96*pds$se.fit)
-# 
-# 
-# 
-# # make dataset for figure
-# pp1 <- gather(posdf2, key="dataType", value = "proportion", dayPercents:predds) %>%
-#   mutate(dataType = recode(dataType, "dayPercents" = "Actual", 
-#                            predds = "Predicted mean"))
-# 
-# # figure for paper
-# # plot actual data and predictions
-# e1Plot <- ggplot(pp1, aes(x = bee_wind_orientation, y = proportion, color = dataType))+ 
-#   facet_grid(.~flight_direction ) + 
-#   geom_errorbar(aes(ymin = lower, ymax = higher), width = 0.1, color = 'grey') + 
-#   geom_hline(aes(yintercept = 0.5), linetype = 2) + 
-#   #geom_point(aes(y = predds), color = 'grey') + 
-#   theme(axis.text.x = element_text(angle = 90, hjust = 0.5)) + 
-#   labs(y = "Proportion of flights", x = "Flight direction") + 
-#   geom_point(aes(color = dataType, shape = dataType)) + 
-#   scale_color_viridis_d(name = "", begin = 0, end = .8) + 
-#   scale_shape_manual(name = "", values = c(16,17))
-# e1Plot
-# ggsave(e1Plot, filename = file.path(figDir, "exp1.png"), width = 5, height = 7)
-# 
-# 
-# # plot actual data vs. predictions (again)
-# set.seed(123)
-# ggplot(posdf2, aes(x = bee_wind_orientation, y = dayPercents))+ 
-#   geom_point(position = position_jitter(width = 0.03), alpha = 0.2) + 
-#   geom_errorbar(aes(ymin = lower, ymax = higher), width = 0.05, color = 'black') + 
-#   geom_hline(aes(yintercept = 0.5), linetype = 2) + 
-#   geom_point(aes(y = predds), color = 'black') + 
-#   labs(x = "bee wind orientation", y = "probability of flight") +
-#   ylim(c(0,1)) + 
-#   ggtitle("Flight probablility for experiment 1 (fast both sides)")
-# 
-# 
-```
 
+# this makes sense, b/c day is the offset
+m1.5 <- update(m1.3, .~. - day)
+summary(m1.5)
+drop1(m1.5, test = 'LRT')
+
+
+
+finMod = m1.3
+summary(finMod) # weird that bees are less likely to fly towards feeder
+
+
+preddf2 <- poisDF2
+preddf2$day_side_total <- 1
+
+confint(finMod)
+
+pds <- predict(finMod,newdata = preddf2, type = "link", se.fit = TRUE)
+
+poisDF2$predds <- exp(pds$fit)
+poisDF2$lower <- exp(pds$fit - 1.96*pds$se.fit)
+poisDF2$higher <- exp(pds$fit + 1.96*pds$se.fit)
+
+
+
+# make dataset for figure
+pp1 <- gather(poisDF2, key="dataType", value = "proportion", daySidePercents:predds) %>%
+  mutate(dataType = recode(dataType, "daySidePercents" = "Daily means",
+                           predds = "Predicted mean"))
+
+
+# figure for paper
+# plot actual data and predictions
+e1Plot <- ggplot(pp1, aes(x = bee_wind_orientation, y = proportion, color = dataType))+
+  facet_grid(.~flight_direction ) +
+  geom_errorbar(aes(ymin = lower, ymax = higher, group = side), width = 0.1, color = 'black', position = position_dodge(width = 0.3)) +
+  #geom_hline(aes(yintercept = 0.5), linetype = 2, color = "grey") +
+  labs(y = "Proportion of flights", x = "Flight direction") +
+  geom_point(aes(color = dataType, alpha = dataType, group = side, shape = side, 
+                 size = dataType),  
+             position = position_dodge(width = 0.3)) +
+  scale_color_grey(name = "Data Type", start = .7, end = 0) +
+  scale_y_continuous(limits = c(0,0.5), expand = c(0,0.05)) + 
+  theme(legend.position = c(0.25, 0.15), 
+        legend.title = element_text(size = 8),         
+        legend.background = element_blank(),
+        legend.spacing.y = unit(0, "mm"),
+        legend.box.background = element_rect(colour = "black")) + 
+  scale_alpha_discrete(name = "Data Type", range  = c(0.7,1)) + 
+  scale_shape(name = "Side") + 
+  scale_size_manual(guide = FALSE, values = c(3,2))
+e1Plot
+ggsave(e1Plot, filename = file.path(figDir, "exp1_poisson_fast.png"), width = 5, height = 7, dpi = 400)
+
+
+```
 
 # Experiment 2
 
@@ -638,109 +634,105 @@ ggsave(filename = file.path(figDir, "exp2.png"), plot = ac, width = 5, height = 
 
 ```
 
-```{r, eval = FALSE, echo = FALSE}
-# 
-# # calculate averages from dataset
-# poisDF3 <- as.data.frame(xtabs(~bee_wind_orientation + flight_direction + day +  side + fast_slow, droplevels(exp2)))
-# 
-# 
-# daySums <- as.data.frame(tapply(poisDF3$Freq, INDEX = list(poisDF3$day, poisDF3$side), sum))
-# daySums$day <- row.names(daySums)
-# 
-# daySums_l <- as.data.frame(gather(data = daySums, key = "side", value = "day_side_total", -day))
-# daySums_l
-# 
-# 
-# p3 <- merge(poisDF3, daySums_l, by.x = c("day", "side"), by.y = c("day", "side"))
-# p3
-# 
-# 
-# 
-# p3$dayPercents <- p3$Freq / p3$day_side_total
-# 
-# p3 <- p3[p3$Freq > 0, ]
-# p3
-# 
-# m2.1 <- glm(Freq ~ (bee_wind_orientation + flight_direction + side + fast_slow)^2 + offset(log(day_side_total)), data = p3, family = poisson("log"))
-# summary(m2.1)
-# 
-# car::vif(m2.1) # a little high
-# 
-# drop1(m2.1, test = 'LRT')
-# 
-# m2.2 <- update(m2.1, .~. - side:fast_slow)
-# summary(m2.2)
-# drop1(m2.2, test = 'LRT')
-# 
-# 
-# 
-# m2.3 <- update(m2.2, .~. - bee_wind_orientation:fast_slow)
-# summary(m2.3)
-# drop1(m2.3, test = 'LRT')
-# 
-# m2.4 <- update(m2.3, .~. - bee_wind_orientation:flight_direction)
-# summary(m2.4)
-# drop1(m2.4, test = 'LRT')
-# 
-# m2.5 <- update(m2.4, .~. - bee_wind_orientation:side)
-# summary(m2.5)
-# drop1(m2.5, test = 'LRT')
-# 
-# 
-# m2.6 <- update(m2.5, .~. - flight_direction:side)
-# summary(m2.6)
-# drop1(m2.6, test = "LRT")
-# 
-# # final model for paper
-# finMod2 <- m2.6
-# summary(finMod2)
-# 
-# 
-# preddf2 <- p3
-# preddf2$day_side_total <- 1
-# 
-# 
-# 
-# pds <- predict(m2.6,newdata = preddf2, type = "link", se.fit = TRUE)
-# 
-# p3$predds <- exp(pds$fit)
-# p3$lower <- exp(pds$fit - 1.96*pds$se.fit)
-# p3$higher <- exp(pds$fit + 1.96*pds$se.fit)
-# 
-# 
-# # make dataset for figure
-# pp3 <- gather(p3, key="dataType", value = "proportion", dayPercents:predds) %>%
-#   mutate(dataType = recode(dataType, "dayPercents" = "Actual", 
-#                            predds = "Predicted mean"))
-# 
-# # figure for paper
-# # plot actual data and predictions
-# e2Plot <- ggplot(pp3, aes(x = flight_direction, y = proportion, color = dataType))+ 
-#   
-#   facet_grid(fast_slow~bee_wind_orientation + side) + 
-#   geom_errorbar(aes(ymin = lower, ymax = higher), width = 0.1, color = 'grey') + 
-#   geom_hline(aes(yintercept = 0.5), linetype = 2) + 
-#   #geom_point(aes(y = predds), color = 'grey') + 
-#   theme(axis.text.x = element_text(angle = 90, hjust = 0.5)) + 
-#   labs(y = "Proportion of flights", x = "Flight direction") + 
-#   geom_point(aes(color = dataType, shape = dataType)) + 
-#   scale_color_viridis_d(name = "", begin = 0, end = .8) + 
-#   scale_shape_manual(name = "", values = c(16,17))
-# e2Plot
-# ggsave(e2Plot, filename = file.path(figDir, "exp2.png"), width = 5, height = 7)
-# 
-# 
-# 
-# # plot actual data vs. predictions (again)
-# set.seed(123)
-# ggplot(p3, aes(x = bee_wind_orientation, y = dayPercents))+ 
-#   geom_point(position = position_jitter(width = 0.03), alpha = 0.2) + 
-#   geom_errorbar(aes(ymin = lower, ymax = higher), width = 0.05, color = 'black') + 
-#   geom_hline(aes(yintercept = 0.5), linetype = 2) + 
-#   geom_point(aes(y = predds), color = 'black') + 
-#   labs(x = "bee wind orientation", y = "probability of flight") +
-#   ylim(c(0,1)) + 
-#   ggtitle("Flight probablility for experiment 2 (fast/slow wind)") 
+```{r}
+# Poisson version of exp2
+
+pois2DF <- exp2 %>%
+  select(bee_wind_orientation, fast_slow, flight_direction, day, side) %>%
+  group_by(bee_wind_orientation, flight_direction, day, side, fast_slow) %>%
+  summarize( Freq  = n()) %>%
+  arrange(day, side)
+
+
+daysums <- pois2DF %>%
+  group_by(day) %>%
+  summarize(day_side_total = sum(Freq))
+
+pois2DF2 <- full_join(pois2DF, daysums) %>%
+  mutate(daySidePercents = Freq /day_side_total)
+pois2DF2
+
+
+# refref: there is a confounding by day that some treatments are impossible
+ggplot(pois2DF2, aes(fill = bee_wind_orientation, y = Freq, x = interaction(bee_wind_orientation, side, flight_direction, fast_slow))) +
+         geom_bar(stat = "identity") +
+  facet_grid(.~day) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5))
+
+# there is aliasing if we try to include day -- i.e. missing interactions
+m1.1 <- glm(Freq ~ (bee_wind_orientation + flight_direction + fast_slow  + side)^2 + offset(log(day_side_total)), data = pois2DF2, family = poisson("log"))
+summary(m1.1)
+
+car::vif(m1.1) # vif is a little high
+
+drop1(m1.1, test = 'LRT')
+
+m1.2 <- update(m1.1, .~. -fast_slow:side)
+summary(m1.2)
+drop1(m1.2, test = 'LRT')
+
+m1.3 <- update(m1.2, .~. - bee_wind_orientation:fast_slow)
+summary(m1.3)
+drop1(m1.3, test = 'LRT')
+
+m1.4 <- update(m1.3, .~. - bee_wind_orientation:flight_direction)
+summary(m1.4)
+drop1(m1.4, test = 'LRT')
+
+
+m1.5 <- update(m1.4, .~. - bee_wind_orientation:side)
+summary(m1.5)
+drop1(m1.5, test = 'LRT')
+
+m1.6 <- update(m1.5, .~. - flight_direction:side)
+summary(m1.6)
+drop1(m1.6, test = 'LRT')
+
+
+finMod = m1.6
+summary(finMod) # weird that bees are less likely to fly towards feeder and more likely to fly on the right side
+
+
+preddf2 <- pois2DF2
+preddf2$day_side_total <- 1
+
+confint(finMod)
+
+pds <- predict(finMod,newdata = preddf2, type = "link", se.fit = TRUE)
+
+pois2DF2$predds <- exp(pds$fit)
+pois2DF2$lower <- exp(pds$fit - 1.96*pds$se.fit)
+pois2DF2$higher <- exp(pds$fit + 1.96*pds$se.fit)
+
+
+
+# make dataset for figure
+pp1 <- gather(pois2DF2, key="dataType", value = "proportion", daySidePercents:predds) %>%
+  mutate(dataType = recode(dataType, "daySidePercents" = "Daily means",
+                           predds = "Predicted mean"))
+
+
+# figure for paper
+# plot actual data and predictions
+e2Plot <- ggplot(pp1, aes(x = bee_wind_orientation, y = proportion, color = dataType))+
+  facet_grid(side~flight_direction ) +
+  geom_errorbar(aes(ymin = lower, ymax = higher,  group = fast_slow), width = 0.1, color = 'black', position = position_dodge(width = 0.5)) +
+  #geom_hline(aes(yintercept = 0.5), linetype = 2, color = "grey") +
+  labs(y = "Proportion of flights", x = "Flight direction") +
+  geom_point(aes(color = dataType, alpha = dataType, group = fast_slow, shape = fast_slow), position = position_dodge(width = 0.5)) +
+  scale_color_grey(name = "Data Type", start = .7, end = 0) +
+  scale_y_continuous(limits = c(0,0.5), expand = c(0,0.05)) + 
+  theme(legend.position = "right", 
+        #legend.background = element_rect(color = "black"), 
+        legend.title = element_text(size = 8), 
+        legend.background = element_blank(),
+        legend.spacing.y = unit(0, "mm"),
+        legend.box.background = element_rect(colour = "black")) + 
+  scale_alpha_discrete(name = "Data Type", range  = c(0.7,1)) + 
+  scale_shape_discrete(name = "Windspeed")
+e2Plot
+ggsave(e2Plot, filename = file.path(figDir, "exp2_poisson_fastslow.png"), width = 6, height = 7, dpi = 400)
+
 
 ```
 
@@ -829,76 +821,95 @@ ggsave(filename = file.path(figDir, "exp3_control.png"), plot = ad, width = 4, h
 
 
 
-```{r, eval = FALSE, echo = FALSE}
-# # calculate averages from dataset
-# poisDF3 <- as.data.frame(xtabs(~bee_wind_orientation + flight_direction + day +  side + fast_slow, droplevels(exp3)))
+```{r}
+# Poisson version of exp3
+
+pois3DF <- exp3 %>%
+  select(flight_direction, day, side) %>%
+  group_by(flight_direction, day, side) %>%
+  summarize( Freq  = n()) %>%
+  arrange(day, side)
+
+
+daysums <- pois3DF %>%
+  group_by(day) %>%
+  summarize(day_side_total = sum(Freq))
+
+pois3DF2 <- full_join(pois3DF, daysums) %>%
+  mutate(daySidePercents = Freq /day_side_total)
+pois3DF2
+
+
 # 
-# 
-# daySums <- as.data.frame(tapply(poisDF3$Freq, INDEX = list(poisDF3$day, poisDF3$side), sum))
-# daySums$day <- row.names(daySums)
-# 
-# daySums_l <- as.data.frame(gather(daySums, key = day))
-# colnames(daySums_l) <- c("day", "side", "day_side_total")
-# 
-# 
-# p3 <- merge(poisDF3, daySums_l, by.x = c("day", "side"), by.y = c("day", "side"))
-# 
-# 
-# 
-# 
-# p3$dayPercents <- p3$Freq / p3$day_side_total
-# 
-# p3 <- p3[p3$Freq > 0, ]
-# p3
-# 
-# m2.1 <- glm(Freq ~ (flight_direction + side)^2 + offset(log(day_side_total)), data = p3, family = poisson("log"))
-# summary(m2.1)
-# 
-# car::vif(lm(Freq ~ (flight_direction + side)^2 + offset(log(day_side_total)), data = p3))
-# 
-# drop1(m2.1, test = 'LRT')
-# 
-# m2.2 <- update(m2.1, .~. - flight_direction:side)
-# summary(m2.2)
-# drop1(m2.2, test = 'LRT')
-# 
-# 
-# 
-# m2.3 <- update(m2.2, .~. - side)
-# summary(m2.3)
-# 
-# preddf2 <- p3
-# preddf2$day_side_total <- 1
-# 
-# 
-# 
-# pds <- predict(m2.3,newdata = preddf2, type = "link", se.fit = TRUE)
-# 
-# p3$predds <- exp(pds$fit)
-# p3$lower <- exp(pds$fit - 1.96*pds$se.fit)
-# p3$higher <- exp(pds$fit + 1.96*pds$se.fit)
-# p3
-# 
-# 
-# # plot actual data and predictions
-# 
-# ggplot(p3, aes(x = flight_direction, y = dayPercents))+ 
-#   geom_point() + 
-#   facet_grid(~day) + 
-#   geom_errorbar(aes(ymin = lower, ymax = higher), width = 0.1) + 
-#   geom_hline(aes(yintercept = 0.5), linetype = 2) + 
-#   geom_point(aes(y = predds), position = position_jitter(width = 0.1, height = 0), color = 'grey')
-# 
-# 
-# # plot actual data vs. predictions (again)
-# set.seed(123)
-# ggplot(p3, aes(x = flight_direction, y = dayPercents))+ 
-#   geom_point(position = position_jitter(width = 0.03), alpha = 0.2) + 
-#   geom_errorbar(aes(ymin = lower, ymax = higher), width = 0.05, color = 'black') + 
-#   geom_hline(aes(yintercept = 0.5), linetype = 2) + 
-#   geom_point(aes(y = predds), color = 'black') + 
-#   labs(x = "bee wind orientation", y = "probability of flight") +
-#   ylim(c(0,1)) + 
-#   ggtitle("Flight probablility for experiment 3 (no wind)")
+ggplot(pois3DF2, aes(fill = side, y = Freq, x = interaction( side, flight_direction))) +
+         geom_bar(stat = "identity") +
+  facet_grid(.~day) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5))
+
+
+m1.1 <- glm(Freq ~ (flight_direction + side )^2 + offset(log(day_side_total)), data = pois3DF2, family = poisson("log"))
+summary(m1.1)
+
+car::vif(m1.1)
+
+drop1(m1.1, test = 'LRT')
+
+m1.2 <- update(m1.1, .~. -flight_direction:side)
+summary(m1.2)
+drop1(m1.2, test = 'LRT')
+
+# m1.3 <- update(m1.2, .~. - bee_wind_orientation:flight_direction)
+# summary(m1.3)
+# drop1(m1.3, test = 'LRT')
+
+
+finMod = m1.2
+summary(finMod) # bees are more likely to fly toward colony on the right
+
+
+preddf2 <- pois3DF2
+preddf2$day_side_total <- 1
+
+confint(finMod)
+
+pds <- predict(finMod,newdata = preddf2, type = "link", se.fit = TRUE)
+
+pois3DF2$predds <- exp(pds$fit)
+pois3DF2$lower <- exp(pds$fit - 1.96*pds$se.fit)
+pois3DF2$higher <- exp(pds$fit + 1.96*pds$se.fit)
+
+
+
+# make dataset for figure
+pp1 <- gather(pois3DF2, key="dataType", value = "proportion", daySidePercents:predds) %>%
+  mutate(dataType = recode(dataType, "daySidePercents" = "Daily means",
+                           predds = "Predicted mean"))
+
+pp1 %>% arrange(side, flight_direction)
+
+
+# figure for paper
+# plot actual data and predictions
+e3Plot <- ggplot(pp1, aes(x = flight_direction, y = proportion, color = dataType))+
+  #facet_grid(flight_direction ~ .) +
+  geom_errorbar(aes(ymin = lower, ymax = higher, group = side),
+                width = 0.1, color = 'black', position = position_dodge(width = 0.3)) +
+  #geom_hline(aes(yintercept = 0.5), linetype = 2, color = "grey") +
+  labs(y = "Proportion of flights", x = "Flight Direction") +
+  geom_point(aes(color = dataType, alpha = dataType, size = dataType, 
+                 group = side, shape = side),  position = position_dodge(width = 0.3)) +
+  scale_color_grey(name = "Data Type", start = .7, end = 0) +
+  scale_y_continuous(limits = c(0,0.5), expand = c(0,0.05)) + 
+  theme(legend.position = c(0.5, 0.15), 
+        #legend.background = element_rect(color = "black"), 
+        legend.title = element_text(size = 8), 
+        legend.background = element_blank(),
+        legend.spacing.y = unit(0, "mm"),
+        legend.box.background = element_rect(colour = "black")) + 
+  scale_alpha_discrete(name = "Data Type", range  = c(0.7,1)) + 
+  scale_shape_discrete(name = "Side") + 
+  scale_size_manual(values= c(3,2), guide = FALSE)
+e3Plot
+ggsave(e3Plot, filename = file.path(figDir, "exp3_poisson_control.png"), width = 5, height = 7, dpi = 400)
 
 ```
