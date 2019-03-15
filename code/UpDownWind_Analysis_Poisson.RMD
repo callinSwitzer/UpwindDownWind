@@ -430,21 +430,15 @@ ggsave(filename = file.path(figDir, "exp1.png"), plot = ab, width = 8, height = 
 
 # calculate averages from dataset
 
-poisDF <- exp1 %>%
+poisDF2 <- exp1 %>%
   select(bee_wind_orientation, flight_direction, day, side) %>%
   group_by(bee_wind_orientation, flight_direction, day, side) %>%
   summarize( Freq  = n()) %>%
-  arrange(day, side)
-
-
-daysums <- poisDF %>%
+  arrange(day, side) %>%
   group_by(day) %>%
-  summarize(day_side_total = sum(Freq))
-
-poisDF2 <- full_join(poisDF, daysums) %>%
-  mutate(daySidePercents = Freq /day_side_total)
+  mutate(day_side_total = sum(Freq),
+         daySidePercents = Freq / day_side_total)
 poisDF2
-
 
 # refref: there is a confounding by day that some treatments are impossible
 ggplot(poisDF2, aes(fill = bee_wind_orientation, y = Freq, x = interaction(bee_wind_orientation, side, flight_direction))) +
@@ -637,19 +631,14 @@ ggsave(filename = file.path(figDir, "exp2.png"), plot = ac, width = 5, height = 
 ```{r}
 # Poisson version of exp2
 
-pois2DF <- exp2 %>%
+pois2DF2 <- exp2 %>%
   select(bee_wind_orientation, fast_slow, flight_direction, day, side) %>%
   group_by(bee_wind_orientation, flight_direction, day, side, fast_slow) %>%
   summarize( Freq  = n()) %>%
-  arrange(day, side)
-
-
-daysums <- pois2DF %>%
+  arrange(day, side) %>%
   group_by(day) %>%
-  summarize(day_side_total = sum(Freq))
-
-pois2DF2 <- full_join(pois2DF, daysums) %>%
-  mutate(daySidePercents = Freq /day_side_total)
+    mutate(day_side_total = sum(Freq),
+        daySidePercents = Freq /day_side_total)
 pois2DF2
 
 
@@ -824,19 +813,14 @@ ggsave(filename = file.path(figDir, "exp3_control.png"), plot = ad, width = 4, h
 ```{r}
 # Poisson version of exp3
 
-pois3DF <- exp3 %>%
+pois3DF2 <- exp3 %>%
   select(flight_direction, day, side) %>%
   group_by(flight_direction, day, side) %>%
   summarize( Freq  = n()) %>%
-  arrange(day, side)
-
-
-daysums <- pois3DF %>%
+  arrange(day, side) %>%
   group_by(day) %>%
-  summarize(day_side_total = sum(Freq))
-
-pois3DF2 <- full_join(pois3DF, daysums) %>%
-  mutate(daySidePercents = Freq /day_side_total)
+  mutate(day_side_total = sum(Freq),
+        daySidePercents = Freq /day_side_total)
 pois3DF2
 
 
