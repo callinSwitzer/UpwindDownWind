@@ -16,6 +16,7 @@ editor_options:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+
 ```
 
 ```{r, warning = FALSE, message=FALSE}
@@ -46,12 +47,17 @@ print(R.version)
 # Import
 
 ```{r, message = FALSE}
-updn <- read_csv(file.path(dataDir, "Data2D_UpwindDownwind.csv"))
+updn1 <- read_csv(file.path(dataDir, "Data2D_UpwindDownwind_withVelocity.csv"))
+updn2 <- read_csv(file.path(dataDir, "Data2D_UpwindDownwind.csv"))
 ```
-
 
 # Tidy and Transform data
 ```{r}
+
+updn1 <- updn %>% mutate(id = row_number())
+updn2 <- updn2 %>% mutate(id = row_number())
+updn = full_join(updn1, updn2, c("minute", "day", "side", "bee/wind orientation", "flight direction", "id"))
+updn
 
 titleCase = function(vect){
   gsub("(^|[[:space:]])([[:alpha:]])", 
@@ -82,7 +88,8 @@ updn <- updn %>%
          side = recode(side, "Rite" = "Right")) %>%
   mutate(trt_interaction = interaction(bee_wind_orientation, 
                               fast_slow,  
-                              flight_direction))
+                              flight_direction)) %>%
+  rename(MedVel = starts_with("med"))
 
 tb <- table(updn$trt_interaction)
 # order by count
