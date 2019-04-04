@@ -49,31 +49,43 @@ print(R.version)
 ```{r, message = FALSE}
 updn1 <- read_csv(file.path(dataDir, "Data2D_UpwindDownwind_withVelocity.csv"))
 updn2 <- read_csv(file.path(dataDir, "Data2D_UpwindDownwind.csv"))
+nrow(updn1)
+nrow(updn2)
+
 ```
 
 # Tidy and Transform data
 ```{r}
 
-updn1 <- updn %>% mutate(id = row_number())
+updn1 <- updn1 %>% mutate(id = row_number())
 updn2 <- updn2 %>% mutate(id = row_number())
-updn = full_join(updn1, updn2, c("minute", "day", "side", "bee/wind orientation", "flight direction", "id"))
+# updn = full_join(updn1, updn2, by =  c("minute", "day", "side", "bee/wind orientation", "flight direction", "id"))
+updn = full_join(updn1, updn2, by =  c("id", "minute", "day", "side", "flight direction"))
 updn
+
+
+# bee flow orientation is different in the two datasets
+# View(updn[updn$`bee/wind orientation.x` != updn$`bee/wind orientation.y`, ])
 
 titleCase = function(vect){
   gsub("(^|[[:space:]])([[:alpha:]])", 
        "\\1\\U\\2", tolower(vect), perl=TRUE)
 }
 
+
+
 updn <- updn %>%
   # rename columns to replace punctuation with "_"
   rename_all(list(~gsub('[[:punct:] ]+','_',colnames(updn)))) %>%
   # remove single quote from strings
   mutate_all(list(~gsub("\'", "", .))) %>%
+  rename(MedVel = starts_with("med")) %>%
   # convert to datetime
   mutate(datetime = as_date(.$day, format = "%m_%d_%y", tz = "UTC"), 
   # convert to numeric
          minute = as.numeric(.$minute),
-         flow_category = as.numeric(.$flow_category)) %>%
+         MedVel = as.numeric(.$MedVel),
+         flow_category = as.numeric(.$flow_category_x)) %>%
   # change factors
   
   mutate(side = titleCase(.$side), 
@@ -81,15 +93,14 @@ updn <- updn %>%
                                    "FEED" = "Towards feeder", 
                                    "NEST" = "Towards colony"), 
          fast_slow = titleCase(.$fast_slow),
-         bee_wind_orientation = recode(bee_wind_orientation, 
+         bee_wind_orientation = recode(bee_wind_orientation_x, 
                                        "DW" = "Downwind", 
                                        "UW" = "Upwind", 
                                        "NW" = "No wind"), 
          side = recode(side, "Rite" = "Right")) %>%
-  mutate(trt_interaction = interaction(bee_wind_orientation, 
+  mutate(trt_interaction = interaction(bee_wind_orientation_x, 
                               fast_slow,  
-                              flight_direction)) %>%
-  rename(MedVel = starts_with("med"))
+                              flight_direction))
 
 tb <- table(updn$trt_interaction)
 # order by count
@@ -125,10 +136,27 @@ aa#+ facet_wrap(~day)
 
 ```
 
+# visualize speed
+
+```{r}
+updn[is.na(updn$MedVel),]
+
+
+
+
+spplt = ggplot(updn, aes(x = flight_direction, y = MedVel)) + 
+  facet_wrap(~bee_wind_orientation) + 
+  geom_boxplot() 
+spplt
+
+
+```
+
+
 ```{r, results = "hide", fig.show = "hide"}
 # Is there "conservation of bee"?
 # do the same number of bees go out as go in?
-ggplot(updn, aes(x = flight_direction, fill = bee_wind_orientation)) + 
+ggplot(updn , aes(x = flight_direction, fill = bee_wind_orientation)) + 
   geom_bar() + 
   #facet_wrap(.~ day) + 
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
