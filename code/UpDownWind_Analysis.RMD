@@ -170,6 +170,7 @@ spplt
 spplt2 = ggplot(updn, aes(x = bee_wind_orientation, y = MedVel)) + 
   facet_wrap(~flight_direction) + 
   geom_boxplot() + 
+  geom_violin( fill = NA) + 
   labs(y = "Median Velocity")
 spplt2
 

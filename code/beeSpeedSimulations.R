@@ -111,25 +111,34 @@ updn
 # make figure 1
 {
   lengthOfTunnel = 1.0 # meters
-  exposureTime = 1.0 # seconds
+  exposureTime = 1 # seconds
   timeBWExposures = 59.0 # seconds
   numExposures = 2
   numBees = 100
   
-  cameraStarts = seq(0, (numExposures -1)*(exposureTime + timeBWExposures), length.out = numExposures)
+  cameraStarts = seq(0, (numExposures -1)*(exposureTime + timeBWExposures), 
+                     length.out = numExposures)
   cameraStops = cameraStarts + exposureTime
   camData = data.frame(cameraStarts, cameraStops)
   
   
-  beeID = seq(1, numBees, 1)
-  beeStartTimes = runif(numBees, min = 0 - max(beeSpeeds), max = max(cameraStarts + exposureTime)) # starts between 0 and 60 seconds
-  
   # sample bee speeds from original dataset (even though it may be biased)
-  qs = quantile(updn$MedVel, probs = seq(0.1, 99.9, length.out = 25)/100)
+  qs = quantile(updn$MedVel, probs = seq(0.1, 99.9, length.out = 55)/100)
+  
+  # this basically gives the same info
+  #qs = seq(min(updn$MedVel), max(updn$MedVel), length.out = 55)
+  
   beeSpeeds = sample(qs, size = numBees, replace = TRUE)
   
   # calculate end times
-  beeEndTimes = beeStartTimes + 1/beeSpeeds*lengthOfTunnel
+  beeTimeInTunnel = 1/beeSpeeds*lengthOfTunnel
+  
+  beeID = seq(1, numBees, 1)
+  beeStartTimes = runif(numBees, min = 0 - max(beeTimeInTunnel), 
+                        max = max(cameraStarts + exposureTime))
+  
+  
+  beeEndTimes = beeStartTimes + beeTimeInTunnel
   
   
   df1 <- data.frame(beeID, beeStartTimes, beeEndTimes, beeSpeeds) %>% as.tbl()
@@ -148,11 +157,8 @@ updn
     
     
     beeCaught = case1 | case2 | case3 | beeCaught
-    
   }
-  
   df1$beeCaught = beeCaught
-  
   
 }
 
@@ -172,7 +178,9 @@ ggplot(df2, aes(x = times, y = beeID, color = beeCaught)) +
                     guide = guide_legend(override.aes = list(alpha = 1))) + 
   theme(axis.text.y=element_blank()) +
   scale_color_grey(name = "Bee caught on camera", start = 0.7, end = 0.1) + 
-  theme(legend.position = c(0.2, 0.8))
+  theme(legend.position = c(0.3, 0.8))
+
+#hist(beeSpeeds[beeCaught])
 
 ggsave(file.path(figDir, "beeSimulationTimes.png"), width = 8, height = 4)
 
@@ -187,9 +195,6 @@ ggsave(file.path(figDir, "beeSimulationTimes.png"), width = 8, height = 4)
 ### Fig 2
 ###################################################################################
 
-
-
-
 # estimate num bees per experiment
 nrow(updn[updn$day == unique(updn$day)[3], ]) ## ~ 500 bees in 120 seconds
 # 250 bees per minute
@@ -199,19 +204,17 @@ nrow(updn[updn$day == unique(updn$day)[3], ]) ## ~ 500 bees in 120 seconds
 
 
 for(simNum in 1:20){
-  lengthOfTunnel = 1 # meters
-  exposureTime = 1.0 # seconds
+  lengthOfTunnel = 1.0 # meters
+  exposureTime = 1 # seconds
   timeBWExposures = 59.0 # seconds
   numExposures = 120
   numBees = 250 * 60 * 2
   
-  cameraStarts = seq(0, (numExposures -1)*(exposureTime + timeBWExposures), length.out = numExposures)
+  cameraStarts = seq(0, (numExposures -1)*(exposureTime + timeBWExposures), 
+                     length.out = numExposures)
   cameraStops = cameraStarts + exposureTime
   camData = data.frame(cameraStarts, cameraStops)
   
-  
-  beeID = seq(1, numBees, 1)
-  beeStartTimes = runif(numBees, min = 0 - max(beeSpeeds), max = max(cameraStarts + exposureTime)) # starts between 0 and 60 seconds
   
   # sample bee speeds from original dataset (even though it may be biased)
   qs = quantile(updn$MedVel, probs = seq(0.1, 99.9, length.out = 55)/100)
@@ -222,7 +225,14 @@ for(simNum in 1:20){
   beeSpeeds = sample(qs, size = numBees, replace = TRUE)
   
   # calculate end times
-  beeEndTimes = beeStartTimes + 1/beeSpeeds*lengthOfTunnel
+  beeTimeInTunnel = 1/beeSpeeds*lengthOfTunnel
+  
+  beeID = seq(1, numBees, 1)
+  beeStartTimes = runif(numBees, min = 0 - max(beeTimeInTunnel), 
+                        max = max(cameraStarts + exposureTime))
+  
+ 
+  beeEndTimes = beeStartTimes + beeTimeInTunnel
   
   
   df1 <- data.frame(beeID, beeStartTimes, beeEndTimes, beeSpeeds) %>% as.tbl()
@@ -258,7 +268,28 @@ for(simNum in 1:20){
   
 }
 
+hist(beeTimeInTunnel)
 
+
+
+# create figure 2
+firstPlt = ggplot(smdf, aes(x = speed, y = prob.Freq)) + 
+  stat_smooth(method = "lm", aes(color = "Estimate"), formula = y ~ I(1/x), span = 0.2, se = FALSE, size = 0.5) + 
+  geom_point(alpha = 0.2, stroke = 0, size = 1, aes(fill = "Simulated data")) + 
+  labs(x = "Bee speed (m/s)", y = "Probability of catching bee with a camera\n(based on simulated data)") + 
+  lims(x = c(0, 2)) + 
+  scale_color_grey(name = "", start = 0, end = 0) + 
+  theme(legend.position = c(0.7, 0.7), 
+        legend.spacing.y = unit(-0.3, "cm"), 
+        legend.background = element_blank()) + 
+  scale_fill_manual(name = "", values = 1)  + 
+  geom_vline(aes(xintercept = 0.55), lty = 2, color = "grey") + 
+  geom_hline(aes(yintercept = 0.049), lty = 2, color = "grey") + 
+
+  geom_vline(aes(xintercept = 0.4), lty = 2, color = "grey") + 
+  geom_hline(aes(yintercept = 0.059), lty = 2, color = "grey")
+
+firstPlt 
 
 # create figure 2
 firstPlt = ggplot(smdf, aes(x = speed, y = prob.Freq)) + 
@@ -287,6 +318,13 @@ ggplot(updn, aes(x = MedVel)) +
 
 #### Evaluate bias in speed estimates
 
+
+
+
+#################################################################
+#### Try to estimate true distribution of bee speeds
+#################################################################
+
 # estimate num bees per experiment
 nrow(updn[updn$day == unique(updn$day)[3], ]) ## ~ 500 bees in 120 seconds
 # 250 bees per minute
@@ -302,19 +340,30 @@ nrow(updn[updn$day == unique(updn$day)[3], ]) ## ~ 500 bees in 120 seconds
   numExposures = 2
   numBees = 250 * 60 * 200
   
-  cameraStarts = seq(0, (numExposures -1)*(exposureTime + timeBWExposures), length.out = numExposures)
+  cameraStarts = seq(0, (numExposures -1)*(exposureTime + timeBWExposures), 
+                     length.out = numExposures)
   cameraStops = cameraStarts + exposureTime
   camData = data.frame(cameraStarts, cameraStops)
   
+  # sample bee speeds
+  
+  d1 = density(updn$MedVel,from = 0.2, to = 2, width = 0.25, n = 999)
+  
+  
+  beeSpeeds = sample(x = d1$x, replace = TRUE, 
+                     prob = d1$y * seq(1, 5, length.out = length(d1$y)), 
+                     size = numBees)
+  beeTimeInTunnel = 1/beeSpeeds*lengthOfTunnel
+  
+  
   
   beeID = seq(1, numBees, 1)
-  beeStartTimes = runif(numBees, min = 0 - max(beeSpeeds), max = max(cameraStarts + exposureTime)) # starts between 0 and 60 seconds
-  
-  # sample bee speeds from original dataset (even though it may be biased)
-  beeSpeeds = sample(updn$MedVel, size = numBees, replace = TRUE)
+  beeStartTimes = runif(numBees, min = 0 - max(beeTimeInTunnel), 
+                        max = max(cameraStarts + exposureTime))
+
   
   # calculate end times
-  beeEndTimes = beeStartTimes + 1/beeSpeeds*lengthOfTunnel
+  beeEndTimes = beeStartTimes + beeTimeInTunnel
   
   
   df1 <- data.frame(beeID, beeStartTimes, beeEndTimes, beeSpeeds) %>% as.tbl()
@@ -343,7 +392,6 @@ nrow(updn[updn$day == unique(updn$day)[3], ]) ## ~ 500 bees in 120 seconds
   
 }
 
-
 # caught bees (from simulation)
 hist(df1$beeSpeeds[df1$beeCaught], freq = FALSE, 
      breaks = 50, col = rgb(1,0,0,0.1), lty="blank", main = "", 
@@ -355,30 +403,253 @@ hist(df1$beeSpeeds, freq = FALSE, breaks = 50, add = TRUE, col = rgb(0,0,1,0.2),
 lines(density(df1$beeSpeeds, width = 0.2, from =  0.2, to = 1.5), col = 'blue')
 
 # # original data
-# hist(updn$MedVel, freq = FALSE, breaks = 50, col = rgb(0,0,0,0.2), add = TRUE)
-# lines(density(updn$MedVel, width = 0.2), col = 'grey20')
-legend("topright", legend = c("Observed bee speeds", "Actual bee speeds"), col = c("red", "blue"), lty = 1)
+hist(updn$MedVel, freq = FALSE, breaks = 50, col = rgb(0,0,0,0.2), add = TRUE)
+lines(density(updn$MedVel, width = 0.2), col = 'grey20')
+legend("topright", legend = c("Speeds of bees captured with camera", "All simulated bee speeds", 
+                              "Speeds of bees in real data"), col = c("red", "blue", "black"), lty = 1)
 
 
 
-ks.test(df1$beeSpeeds[df1$beeCaught], updn$MedVel)
-ks.test(df1$beeSpeeds, updn$MedVel)
-
-hist(updn$MedVel, freq = FALSE, breaks = 50, col = rgb(1,0,0,0.2))
-lines(density(updn$MedVel, width = 0.2), col = 'red')
-hist(df1$beeSpeeds, freq = FALSE, breaks = 50, col = rgb(1,0,0,0.2), add = TRUE)
-lines(density(df1$beeSpeeds, width = 0.2), col = 'blue')
-
-d1 = density(updn$MedVel,from = 0.2, to = 2, width = 0.25, n = 999)
 
 
-samples = sample(x = d1$x, replace = TRUE, prob = d1$y, size = 100000)
-min(samples)
+#################################################################################
+#### Simulate data from upwind vs. downwind towards feeder
+#################################################################################
 
-hist(samples, breaks = 50, freq = FALSE)
-lines(density(samples, width = 0.2))
-hist(updn$MedVel, freq = FALSE, breaks = 50, col = rgb(1,0,0,0.2), add = TRUE)
-lines(density(updn$MedVel, width = 0.2), col = 'red')
+hist(updn$MedVel[updn$bee_wind_orientation == "Downwind" & 
+                   updn$flight_direction == "Towards feeder"], 
+     col = "red", breaks = 5, freq = FALSE)
+
+hist(updn$MedVel[updn$bee_wind_orientation == "Upwind" & 
+                   updn$flight_direction == "Towards feeder"], breaks = 10, 
+     add = TRUE, 
+     freq = FALSE, col = rgb(1,1,1,0.3))
 
 
-ks.test(samples, updn$MedVel)
+
+# Estimate true distribution of speeds, given observed distribution
+# use that distribution to estimate the number of bees captured.
+# estimate the differences between the two treatments
+
+# sample Upwind, towards feeder
+for(simNum in 1){
+  lengthOfTunnel = 1.0 # meters
+  exposureTime = 1 # seconds
+  timeBWExposures = 59.0 # seconds
+  numExposures = 120
+  numBees = 250 * 60 * 10
+  
+  cameraStarts = seq(0, (numExposures -1)*(exposureTime + timeBWExposures), 
+                     length.out = numExposures)
+  cameraStops = cameraStarts + exposureTime
+  camData = data.frame(cameraStarts, cameraStops)
+  
+  x = seq(0.2, 3, length.out = 1000)
+  # hx = dnorm(x, mean = 0.55, sd = 0.18) #upwind
+  hx = dnorm(x, mean = 0.4, sd = 0.18) #downwind
+  
+  beeSpeeds = sample(x, prob = hx, replace = TRUE, size = numBees)
+  
+  # calculate end times
+  beeTimeInTunnel = 1/beeSpeeds*lengthOfTunnel
+  
+  beeID = seq(1, numBees, 1)
+  beeStartTimes = runif(numBees, min = 0 - max(beeTimeInTunnel), 
+                        max = max(cameraStarts + exposureTime))
+  
+  
+  beeEndTimes = beeStartTimes + beeTimeInTunnel
+  
+  
+  df1 <- data.frame(beeID, beeStartTimes, beeEndTimes, beeSpeeds) %>% as.tbl()
+  beeCaught = rep(FALSE, length(beeStartTimes))
+  for (ii in 1:length(cameraStarts)){
+    
+    # three cases
+    # bee starts after video starts
+    case1 <- beeStartTimes > cameraStarts[ii] & beeStartTimes < cameraStops[ii]
+    
+    # bee is in frame when camera starts and ends before camera does
+    case2 <- beeEndTimes > cameraStarts[ii] & beeEndTimes < cameraStops[ii]
+    
+    # bee starts before camera and ends after camera turns off
+    case3 <- beeStartTimes < cameraStarts[ii] & beeEndTimes > cameraStops[ii]
+    
+    
+    beeCaught = case1 | case2 | case3 | beeCaught
+    
+  }
+  
+  df1$beeCaught = beeCaught
+  
+}
+
+
+{
+  # caught bees (from simulation)
+  hist(df1$beeSpeeds[df1$beeCaught], freq = FALSE, 
+       breaks = 50, col = rgb(1,0,0,0.1), lty="blank", main = "", 
+       xlab = "Bee speed (m/s)")
+  lines(density(df1$beeSpeeds[df1$beeCaught], width = 0.2, from = 0.2, to = 1.5), col = 'red')
+  
+  # # all bees from simulation
+  hist(df1$beeSpeeds, freq = FALSE, breaks = 50, add = TRUE, col = rgb(0,0,1,0.2), lty = "blank")
+  lines(density(df1$beeSpeeds, width = 0.2, from =  0.2, to = 1.5), col = 'blue')
+  
+  # # original data
+  hist(updn$MedVel[updn$bee_wind_orientation == "Downwind" & 
+                     updn$flight_direction == "Towards feeder"], freq = FALSE, breaks = 25, col = rgb(0,0,0,0.2), add = TRUE)
+  lines(density(updn$MedVel[updn$bee_wind_orientation == "Downwind" & 
+                              updn$flight_direction == "Towards feeder"], 
+                width = 0.2), col = 'grey20')
+  legend("topright", legend = c("Observed speeds of bees in simulation", "All simulated bee speeds", 
+                                "Observed peeds of bees in real data"), col = c("red", "blue", "black"), lty = 1)
+}
+
+
+
+
+###################################################################################
+## Estimate count bias
+###################################################################################
+# now that I've estimated the true dist of bees, I can estimate the count of bees that would be caught
+
+# sample Upwind, towards feeder
+for(simNum in 1:50){
+  if(simNum == 1){
+    beeCount = numeric()
+  }
+  
+  lengthOfTunnel = 1.0 # meters
+  exposureTime = 1 # seconds
+  timeBWExposures = 59.0 # seconds
+  numExposures = 120
+  numBees = 250 * 60 * 2
+  
+  cameraStarts = seq(0, (numExposures -1)*(exposureTime + timeBWExposures), 
+                     length.out = numExposures)
+  cameraStops = cameraStarts + exposureTime
+  camData = data.frame(cameraStarts, cameraStops)
+  
+  
+  # upwind
+  x = seq(0.2, 3, length.out = 1000)
+  hx = dnorm(x, mean = 0.55, sd = 0.18) # upwind
+  
+  beeSpeeds = sample(x, prob = hx, replace = TRUE, size = numBees)
+  
+  # calculate end times
+  beeTimeInTunnel = 1/beeSpeeds*lengthOfTunnel
+  
+  beeID = seq(1, numBees, 1)
+  beeStartTimes = runif(numBees, min = 0 - max(beeTimeInTunnel), 
+                        max = max(cameraStarts + exposureTime))
+  
+  
+  beeEndTimes = beeStartTimes + beeTimeInTunnel
+  
+  
+  df1 <- data.frame(beeID, beeStartTimes, beeEndTimes, beeSpeeds) %>% as.tbl()
+  beeCaught = rep(FALSE, length(beeStartTimes))
+  for (ii in 1:length(cameraStarts)){
+    
+    # three cases
+    # bee starts after video starts
+    case1 <- beeStartTimes > cameraStarts[ii] & beeStartTimes < cameraStops[ii]
+    
+    # bee is in frame when camera starts and ends before camera does
+    case2 <- beeEndTimes > cameraStarts[ii] & beeEndTimes < cameraStops[ii]
+    
+    # bee starts before camera and ends after camera turns off
+    case3 <- beeStartTimes < cameraStarts[ii] & beeEndTimes > cameraStops[ii]
+    
+    
+    beeCaught = case1 | case2 | case3 | beeCaught
+    
+  }
+  
+  df1$beeCaught = beeCaught
+  
+  beeCount[simNum] = sum(beeCaught)
+  
+}
+
+beeCount / numBees
+
+
+
+
+# sample downwind, towards feeder
+for(simNum in 51:100){
+  
+  lengthOfTunnel = 1.0 # meters
+  exposureTime = 1 # seconds
+  timeBWExposures = 59.0 # seconds
+  numExposures = 120
+  numBees = 250 * 60 * 2
+  
+  cameraStarts = seq(0, (numExposures -1)*(exposureTime + timeBWExposures), 
+                     length.out = numExposures)
+  cameraStops = cameraStarts + exposureTime
+  camData = data.frame(cameraStarts, cameraStops)
+  
+  
+  # upwind
+  x = seq(0.2, 3, length.out = 1000)
+
+  hx = dnorm(x, mean = 0.4, sd = 0.18) #downwind
+  
+  beeSpeeds = sample(x, prob = hx, replace = TRUE, size = numBees)
+  
+  # calculate end times
+  beeTimeInTunnel = 1/beeSpeeds*lengthOfTunnel
+  
+  beeID = seq(1, numBees, 1)
+  beeStartTimes = runif(numBees, min = 0 - max(beeTimeInTunnel), 
+                        max = max(cameraStarts + exposureTime))
+  
+  
+  beeEndTimes = beeStartTimes + beeTimeInTunnel
+  
+  
+  df1 <- data.frame(beeID, beeStartTimes, beeEndTimes, beeSpeeds) %>% as.tbl()
+  beeCaught = rep(FALSE, length(beeStartTimes))
+  for (ii in 1:length(cameraStarts)){
+    
+    # three cases
+    # bee starts after video starts
+    case1 <- beeStartTimes > cameraStarts[ii] & beeStartTimes < cameraStops[ii]
+    
+    # bee is in frame when camera starts and ends before camera does
+    case2 <- beeEndTimes > cameraStarts[ii] & beeEndTimes < cameraStops[ii]
+    
+    # bee starts before camera and ends after camera turns off
+    case3 <- beeStartTimes < cameraStarts[ii] & beeEndTimes > cameraStops[ii]
+    
+    
+    beeCaught = case1 | case2 | case3 | beeCaught
+    
+  }
+  
+  df1$beeCaught = beeCaught
+  
+  beeCount[simNum] = sum(beeCaught)
+  
+}
+
+
+beeSimFrame = data.frame(beeCount, direction = rep(c("upwind", "downwind"), each = 50))
+
+
+ggplot(beeSimFrame, aes(x = direction, y = beeCount/numBees)) + 
+  geom_boxplot() + 
+  ylim(c(0, 0.07))
+
+beeSimFrame %>%
+  group_by(direction) %>%
+  summarize(mm = mean(beeCount/numBees))
+
+# From these data, I estimate that you're ~1.2x as likely to catch bees going downwind, than bees going upwind.  Alternatively, you're ~0.84 times as likely to catch bees going upwind, compared to bees going downwind. 
+
+
+
